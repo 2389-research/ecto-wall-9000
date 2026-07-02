@@ -118,6 +118,8 @@ body.idle {
   text-align: center;
   color: rgba(236, 243, 244, 0.85);
   text-shadow: 0 2px 30px rgba(0, 0, 0, 0.55);
+  /* Blend into the wall's light: bright where modes glow, sunken where they go dark. */
+  mix-blend-mode: overlay;
   z-index: 4;
   pointer-events: none;
   user-select: none;
