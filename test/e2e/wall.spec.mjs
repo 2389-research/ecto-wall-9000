@@ -82,6 +82,25 @@ test('auto-cycles, and arrow keys pin / a resumes', async ({ page }) => {
   await expect.poll(() => hudText(page), { timeout: 15_000 }).toContain('[auto]');
 });
 
+test('recovers from WebGL context loss by reloading', async ({ page }) => {
+  await page.goto('/?dwell=60&fade=2');
+  await passGate(page);
+  await page.waitForTimeout(1500);
+
+  // Kill the GL context for real via the extension built for exactly this. The wall's
+  // recovery policy is a backed-off reload (all state is ambient), so expect a fresh
+  // load event, an auto-skipped gate, and pixels again.
+  const reloaded = page.waitForEvent('load', { timeout: 20_000 });
+  await page.evaluate(() => {
+    const c = /** @type {HTMLCanvasElement} */ (document.getElementById('wall'));
+    c.getContext('webgl2')?.getExtension('WEBGL_lose_context')?.loseContext();
+  });
+  await reloaded;
+  await passGate(page);
+  await page.waitForTimeout(2500);
+  expect(await brightness(page)).toBeGreaterThan(1);
+});
+
 test('60s soak: full cycle churn with zero console errors', async ({ page }) => {
   test.setTimeout(150_000);
   const con = watchConsole(page);

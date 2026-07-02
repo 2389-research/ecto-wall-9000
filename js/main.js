@@ -2,6 +2,7 @@
 // ABOUTME: quality governor, keyboard control, HUD, and wiring between vision/signals/modes.
 // @ts-check
 import { initGL } from './gl.js';
+import { armContextLossReload, keepAwake } from './kiosk.js';
 import { SkeletonConstellation } from './modes/constellation.js';
 import { EchoChamber } from './modes/echo.js';
 import { SilhouetteGarden } from './modes/garden.js';
@@ -51,6 +52,9 @@ try {
   fatal(err instanceof Error ? err.message : String(err));
   throw err;
 }
+
+armContextLossReload(canvas);
+const wake = keepAwake();
 
 const signals = new Signals();
 const governor = new QualityGovernor();
@@ -190,7 +194,7 @@ setInterval(() => {
     ` | fps ${fps.toFixed(0)} | scale ${governor.scale}` +
     ` | motion ${signals.motionEnergy.toFixed(2)} | people ${signals.personCount}` +
     ` | hands ${signals.handActivity.toFixed(2)} | mp ${vision.mpStatus}` +
-    ` | cam ${vision.cameraAlive ? 'live' : 'off'}`;
+    ` | cam ${vision.cameraAlive ? 'live' : 'off'} | wake ${wake.held ? 'on' : 'off'}`;
 }, 500);
 
 // --- render loop --------------------------------------------------------------------------
