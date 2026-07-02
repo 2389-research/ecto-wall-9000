@@ -30,6 +30,13 @@
 
   <div id="panel" role="toolbar" aria-label="wall controls"></div>
 
-  <script type="module" src="js/main.js"></script>
+  <!-- The onerror handler must live outside the module graph it reports on: if any
+       import in the graph 404s (e.g. a stale cached main.js naming a deleted module),
+       nothing inside the graph ever runs — including the gate's error surface. -->
+  <script
+    type="module"
+    src="js/main.js"
+    onerror="var e = document.getElementById('gate-error'); e.textContent = 'The wall failed to load — hard-refresh (hold Shift and reload) to clear a stale cache.'; e.hidden = false;"
+  ></script>
 </body>
 </html>

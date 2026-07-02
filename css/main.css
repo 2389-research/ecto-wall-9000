@@ -53,6 +53,12 @@ body.idle {
   pointer-events: none;
 }
 
+/* The #gate rule outspecifies the UA's [hidden] display:none — restate it, or the
+   "hidden" gate lives on as an invisible full-screen layer. */
+#gate[hidden] {
+  display: none;
+}
+
 #gate-card {
   text-align: center;
   max-width: 34rem;

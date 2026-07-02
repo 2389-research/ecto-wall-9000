@@ -11,7 +11,8 @@ export default defineConfig({
   workers: 1, // one browser at a time: shared GPU + camera fixture
   globalSetup: './test/e2e/global-setup.mjs',
   webServer: {
-    command: 'python3 -m http.server 44678 --bind 127.0.0.1',
+    // The real server, not a stand-in: its cache headers are part of what we test.
+    command: './serve.sh 127.0.0.1',
     port: 44678,
     reuseExistingServer: true,
   },

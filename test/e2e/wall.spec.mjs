@@ -132,6 +132,44 @@ test('overlay clock shows locale time; ?clock=0 hides it', async ({ page }) => {
   await expect(page.locator('#clock')).toBeHidden();
 });
 
+test('static server forces revalidation so module renames never strand stale importers', async ({
+  request,
+}) => {
+  for (const path of ['/', '/js/main.js']) {
+    const res = await request.get(path);
+    const cc = res.headers()['cache-control'] ?? '';
+    expect(cc, `${path} must carry Cache-Control: no-cache`).toContain('no-cache');
+  }
+});
+
+test('first visit: the begin button starts the wall', async ({ page }) => {
+  // The e2e context pre-grants the camera, which auto-skips the gate — so the button's
+  // click path never runs in the other specs. Report 'prompt' to walk it like a
+  // first-time visitor.
+  await page.addInitScript(() => {
+    navigator.permissions.query = () =>
+      Promise.resolve(
+        /** @type {PermissionStatus} */ (/** @type {unknown} */ ({ state: 'prompt' })),
+      );
+  });
+  await page.goto('/?dwell=60&fade=2');
+  await expect(page.locator('#start')).toBeVisible();
+  await page.click('#start');
+  await expect(page.locator('#gate')).toBeHidden({ timeout: 8000 });
+  await page.waitForTimeout(1500);
+  expect(await brightness(page)).toBeGreaterThan(1);
+});
+
+test('a failed module graph surfaces on the gate instead of a dead begin button', async ({
+  page,
+}) => {
+  await page.route('**/js/main.js', (route) => route.abort());
+  await page.goto('/');
+  const err = page.locator('#gate-error');
+  await expect(err).toBeVisible({ timeout: 5000 });
+  await expect(err).toContainText(/refresh/i);
+});
+
 test('recovers from WebGL context loss by reloading', async ({ page }) => {
   await page.goto('/?dwell=60&fade=2');
   await passGate(page);
