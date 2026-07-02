@@ -1,0 +1,22 @@
+{
+  "name": "ecto-wall-9000",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Ambient camera-driven generative video wall. Static site, no build step.",
+  "scripts": {
+    "serve": "./serve.sh",
+    "test": "npm run test:unit && npm run test:e2e",
+    "test:unit": "vitest run",
+    "test:e2e": "playwright test",
+    "typecheck": "tsc -p jsconfig.json",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write ."
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.2",
+    "@playwright/test": "^1.61.1",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.9"
+  }
+}

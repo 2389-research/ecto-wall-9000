@@ -1,5 +1,6 @@
 node_modules/
 test-results/
 playwright-report/
-test/fixtures/*.y4m
 .DS_Store
+scratch-*.mjs
+test/e2e/fixtures/

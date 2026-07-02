@@ -1,0 +1,127 @@
+/* ABOUTME: Styles for ECTO-WALL 9000 — fullscreen canvas, start gate, and debug HUD. */
+/* ABOUTME: Everything is dark-first; the canvas is the show, the DOM stays out of the way. */
+
+:root {
+  --ink: #cfd8dc;
+  --dim: #607d8b;
+  --accent: #7fdbca;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  background: #000;
+  color: var(--ink);
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  overflow: hidden;
+}
+
+#wall {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  background: #000;
+}
+
+body.hide-cursor {
+  cursor: none;
+}
+
+/* ---- start gate ---- */
+
+#gate {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(ellipse at 50% 60%, #0a1418 0%, #000 70%);
+  transition: opacity 1.6s ease;
+  z-index: 10;
+}
+
+#gate.leaving {
+  opacity: 0;
+  pointer-events: none;
+}
+
+#gate-card {
+  text-align: center;
+  max-width: 34rem;
+  padding: 2rem;
+}
+
+#gate-card h1 {
+  font-size: 2.2rem;
+  font-weight: 500;
+  letter-spacing: 0.35em;
+  color: var(--accent);
+  text-shadow: 0 0 24px rgba(127, 219, 202, 0.35);
+}
+
+#gate-card .tagline {
+  margin-top: 0.8rem;
+  color: var(--dim);
+  font-size: 0.85rem;
+  letter-spacing: 0.15em;
+}
+
+#start {
+  margin-top: 2.4rem;
+  padding: 0.8rem 3.2rem;
+  font: inherit;
+  font-size: 1rem;
+  letter-spacing: 0.3em;
+  color: var(--accent);
+  background: transparent;
+  border: 1px solid rgba(127, 219, 202, 0.5);
+  border-radius: 2px;
+  cursor: pointer;
+  transition:
+    background 0.3s,
+    box-shadow 0.3s;
+}
+
+#start:hover {
+  background: rgba(127, 219, 202, 0.08);
+  box-shadow: 0 0 32px rgba(127, 219, 202, 0.25);
+}
+
+.privacy {
+  margin-top: 2.2rem;
+  font-size: 0.72rem;
+  line-height: 1.7;
+  color: var(--dim);
+}
+
+#gate-error {
+  margin-top: 1.4rem;
+  font-size: 0.8rem;
+  color: #ef9a9a;
+}
+
+/* ---- debug HUD ---- */
+
+#hud {
+  position: fixed;
+  top: 0.8rem;
+  left: 0.8rem;
+  padding: 0.7rem 0.9rem;
+  font-size: 0.72rem;
+  line-height: 1.55;
+  white-space: pre;
+  color: var(--ink);
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(207, 216, 220, 0.15);
+  border-radius: 3px;
+  z-index: 20;
+  pointer-events: none;
+}

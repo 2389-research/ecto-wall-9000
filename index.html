@@ -1,0 +1,31 @@
+<!doctype html>
+<!-- ABOUTME: Entry point for ECTO-WALL 9000, an ambient camera-driven generative video wall. -->
+<!-- ABOUTME: Hosts the render canvas, the click-to-begin start gate, and the debug HUD. -->
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ECTO-WALL 9000</title>
+  <link rel="stylesheet" href="css/main.css" />
+</head>
+<body>
+  <canvas id="wall"></canvas>
+
+  <div id="gate">
+    <div id="gate-card">
+      <h1>ECTO&#8209;WALL&nbsp;9000</h1>
+      <p class="tagline">an ambient instrument played by the room</p>
+      <button id="start" type="button">begin</button>
+      <p class="privacy">
+        The camera feeds this screen and nothing else.<br />
+        No frames are recorded, stored, or transmitted.
+      </p>
+      <p id="gate-error" hidden></p>
+    </div>
+  </div>
+
+  <div id="hud" hidden></div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

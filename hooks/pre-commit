@@ -1,0 +1,10 @@
+#!/bin/sh
+# ABOUTME: Pre-commit gate for ECTO-WALL 9000 — lint, typecheck, and unit tests must pass.
+# ABOUTME: Enable with: git config core.hooksPath hooks
+set -e
+echo "pre-commit: biome"
+npm run --silent lint
+echo "pre-commit: tsc"
+npm run --silent typecheck
+echo "pre-commit: unit tests"
+npm run --silent test:unit
