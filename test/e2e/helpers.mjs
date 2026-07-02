@@ -32,10 +32,10 @@ export function watchConsole(page) {
  */
 export async function passGate(page) {
   try {
-    await page.waitForSelector('#gate[hidden]', { timeout: 5000 });
+    await page.waitForSelector('#gate', { state: 'hidden', timeout: 5000 });
   } catch {
     await page.click('#start');
-    await page.waitForSelector('#gate[hidden]', { timeout: 8000 });
+    await page.waitForSelector('#gate', { state: 'hidden', timeout: 8000 });
   }
 }
 
