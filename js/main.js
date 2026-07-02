@@ -1,6 +1,7 @@
 // ABOUTME: Boot and conductor for ECTO-WALL 9000: GL init, start gate, render loop,
 // ABOUTME: quality governor, keyboard control, HUD, and wiring between vision/signals/modes.
 // @ts-check
+import { initClock } from './clock.js';
 import { initGL } from './gl.js';
 import { armContextLossReload, keepAwake } from './kiosk.js';
 import { SkeletonConstellation } from './modes/constellation.js';
@@ -38,6 +39,8 @@ const fade = Number(query.get('fade')) > 0 ? Number(query.get('fade')) : 12;
 const cycleParam = query.get('cycle');
 const auto = !(cycleParam === '0' || cycleParam === 'false');
 const pinParam = query.get('mode');
+const clockParam = query.get('clock');
+const clockOn = !(clockParam === '0' || clockParam === 'false');
 
 /** @param {string} msg */
 function fatal(msg) {
@@ -182,6 +185,9 @@ document.addEventListener('keydown', (ev) => {
 });
 
 initPanel(el('panel'), manager, { toggleFullscreen, toggleHud });
+
+if (clockOn) initClock(el('clock'));
+else el('clock').setAttribute('hidden', '');
 
 // --- idle auto-hide (cursor + panel) --------------------------------------------------------
 
