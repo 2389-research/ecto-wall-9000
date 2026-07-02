@@ -4,9 +4,11 @@
 import { initGL } from './gl.js';
 import { SkeletonConstellation } from './modes/constellation.js';
 import { EchoChamber } from './modes/echo.js';
+import { SilhouetteGarden } from './modes/garden.js';
 import { GhostField } from './modes/ghost.js';
 import { ParticleWake } from './modes/particle.js';
 import { RippleTank } from './modes/ripple.js';
+import { RoomWeather } from './modes/weather.js';
 import { ModeManager } from './modes.js';
 import { Post } from './post.js';
 import { ema, QualityGovernor, Signals } from './signals.js';
@@ -63,6 +65,8 @@ const modes = [
   new RippleTank(),
   new EchoChamber(),
   new SkeletonConstellation(),
+  new RoomWeather(),
+  new SilhouetteGarden(),
 ];
 const manager = new ModeManager(gl, vision, signals, modes, { dwell, fade, auto });
 vision.onMpChange = () => manager.refreshAvailability();
