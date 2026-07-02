@@ -122,6 +122,12 @@ test('overlay clock shows locale time; ?clock=0 hides it', async ({ page }) => {
   await expect(time).toHaveText(/\d{1,2}[:.]\d{2}/); // hh:mm in any locale convention
   await expect(page.locator('#clock .clock-date')).not.toBeEmpty();
 
+  // The clock blends into the wall's light rather than sitting flat on top of it.
+  const blend = await page.evaluate(
+    () => getComputedStyle(/** @type {Element} */ (document.getElementById('clock'))).mixBlendMode,
+  );
+  expect(blend).toBe('overlay');
+
   await page.goto('/?clock=0');
   await expect(page.locator('#clock')).toBeHidden();
 });
