@@ -177,13 +177,14 @@ Per house rules: unit, integration, and e2e all required; no app-level mock mode
 
 ## Build Order (input to the implementation plan; ≤5 files per phase)
 
-1. **Scaffold + first light:** repo files, `index.html`, `css`, `serve.sh`, `package.json`/`jsconfig`, `gl.js`, minimal `main.js` showing the mirrored camera through a shader. Proves camera + GL + serving.
-2. **Nervous system + first mode:** `signals.js` (+ unit tests), motion field in `vision.js`, `post.js`, **Ghost Field**.
-3. **The chassis:** `modes.js` (registry, auto-cycle, motion-reactive crossfade), **Echo Chamber** (proves chassis generality), e2e boot/cycle tests.
-4. **Motion consumers:** **Particle Wake**, **Ripple Tank**.
-5. **MediaPipe:** scheduler in `vision.js`, **Skeleton Constellation**.
-6. **Heavy vision modes:** **Room Weather**, **Silhouette Garden**.
-7. **Kiosk hardening + soak:** governor wiring, context-loss/camera-loss recovery, wake lock, HUD polish, 60s soak e2e.
+1. **Scaffold:** `index.html`, `css/main.css`, `serve.sh`, `package.json`, `jsconfig.json`. Static page serves on 44678.
+2. **First light:** `gl.js`, minimal `main.js` showing the mirrored camera through a shader. Proves camera + GL + serving.
+3. **Nervous system + first mode:** `signals.js` (+ unit tests), motion field in `vision.js`, `post.js`, **Ghost Field**.
+4. **The chassis:** `modes.js` (registry, auto-cycle, motion-reactive crossfade), **Echo Chamber** (proves chassis generality), e2e boot/cycle tests.
+5. **Motion consumers:** **Particle Wake**, **Ripple Tank**.
+6. **MediaPipe:** scheduler in `vision.js`, **Skeleton Constellation**.
+7. **Heavy vision modes:** **Room Weather**, **Silhouette Garden**.
+8. **Kiosk hardening + soak:** governor wiring, context-loss/camera-loss recovery, wake lock, HUD polish, 60s soak e2e.
 
 ## Open Notes
 
