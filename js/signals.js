@@ -58,7 +58,7 @@ export function camToDisp(map, x, y, mirror = true) {
 
 /**
  * Fixed-size ring of time-averaged history slots (e.g. minute-resolution motion history).
- * Drives Room Weather's slow pressure systems.
+ * Feeds the long-run `pressure` barometer.
  */
 export class HistoryRing {
   /** @param {number} slots @param {number} slotSeconds */
@@ -347,7 +347,7 @@ export class Signals {
     this.history.push(this.motionEnergy, dt);
   }
 
-  /** Long-run activity average (0–1): Room Weather's barometer. */
+  /** Long-run activity average (0–1): a slow barometer of how busy the room has been. */
   get pressure() {
     return this.history.average();
   }

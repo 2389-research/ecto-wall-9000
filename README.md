@@ -2,7 +2,7 @@
 
 An ambient, camera-driven generative video wall for a big screen, TV, or projector.
 Point it at a room and the room paints it: motion becomes ghosts, wakes, ripples,
-constellations, weather, and gardens. Nobody "uses" it — it just hangs there being alive.
+auroras, coral reefs, and gardens. Nobody "uses" it — it just hangs there being alive.
 
 Static site. No build step. Raw WebGL2 + MediaPipe Tasks Vision, plain ES modules.
 
@@ -28,11 +28,11 @@ The wall auto-cycles with slow crossfades (default: 3 minutes per mode, 12 s fad
 | 2 | `particle-wake` | A fixed population of GPU particles drifts on curl noise; walkers inject velocity and tow glowing wakes through the field. |
 | 3 | `ripple-tank` | A wave-equation water surface; your movement is a moving wave source, and the camera's world refracts through dark water. |
 | 4 | `echo-chamber` | A ring of once-per-second snapshots replayed at 1/3/7/15 s taps — only *differences* from the present glow, in spectral tints. |
-| 5 | `skeleton-constellation` | Pose and hand landmarks become star charts: joints as twinkling stars, bones as faint lines. When a person leaves, their stars drift skyward and dissolve. |
-| 6 | `room-weather` | A procedural sky whose wind, storminess, warmth, lightning, and rain are driven by motion energy, person count, and hand activity. |
+| 5 | `aurora-ribbons` | Light calligraphy: your head, hands, and feet paint hue-coded ribbons that rise and waver like an aurora before fading. Empty rooms keep dim procedural curtains. |
+| 6 | `coral-bloom` | A Gray-Scott reaction-diffusion reef where motion seeds living coral growth; feed/kill rates drift so the colony keeps renegotiating its own shape. |
 | 7 | `silhouette-garden` | Gray-Scott reaction-diffusion coral-moss sown along the edges of people's silhouettes; growth matures, then composts back to soil. |
 
-Modes 5–7 use MediaPipe (pose, hands, segmentation) loaded lazily from a CDN. If the
+Modes 5 and 7 use MediaPipe (pose, segmentation) loaded lazily from a CDN. If the
 CDN is unreachable the wall degrades gracefully: those modes leave the roster and the
 motion-only modes keep running.
 
