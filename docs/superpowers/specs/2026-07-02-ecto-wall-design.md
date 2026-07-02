@@ -190,3 +190,12 @@ Per house rules: unit, integration, and e2e all required; no app-level mock mode
 
 - Remote viewing over plain `http://<tailscale-ip>:44678` will render but **cannot access the camera** (secure-context rule: localhost or https only). For remote camera use, front it with `tailscale serve` (provides https). Documented in README.
 - Mode palettes/constants live at the top of each mode file for easy tuning sessions.
+
+## Amendments
+
+- **2026-07-02 — roster swap:** **Skeleton Constellation** and **Room Weather** retired,
+  replaced by **Aurora Ribbons** (pose-driven light calligraphy: nose/wrists/ankles paint
+  hue-coded ribbons into a rising feedback buffer; procedural curtains when empty; *needs:
+  pose only*) and **Coral Bloom** (Gray-Scott reaction-diffusion; room motion seeds coral
+  growth; *needs: none* — stays on the roster when the MediaPipe CDN is down). Net effect:
+  no mode requires hands anymore, and the roster keeps five motion-only modes alive offline.

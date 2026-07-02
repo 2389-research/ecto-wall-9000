@@ -8,8 +8,6 @@ const LABELS = {
   'particle-wake': 'wake',
   'ripple-tank': 'ripple',
   'echo-chamber': 'echo',
-  'skeleton-constellation': 'stars',
-  'room-weather': 'weather',
   'silhouette-garden': 'garden',
 };
 
