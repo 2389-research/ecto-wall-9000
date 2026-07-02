@@ -8,7 +8,7 @@ const ALL_MODES = [
   ['2', 'particle-wake', 3400],
   ['3', 'ripple-tank', 3400],
   ['4', 'echo-chamber', 3400],
-  ['5', 'skeleton-constellation', 9000], // first MediaPipe load happens here
+  ['5', 'aurora-ribbons', 9000], // first MediaPipe load happens here
   ['6', 'coral-bloom', 3400],
   ['7', 'silhouette-garden', 7000], // segmentation model load + garden growth
 ];

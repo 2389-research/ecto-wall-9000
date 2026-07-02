@@ -4,7 +4,7 @@
 import { initClock } from './clock.js';
 import { initGL } from './gl.js';
 import { armContextLossReload, keepAwake } from './kiosk.js';
-import { SkeletonConstellation } from './modes/constellation.js';
+import { AuroraRibbons } from './modes/aurora.js';
 import { CoralBloom } from './modes/coral.js';
 import { EchoChamber } from './modes/echo.js';
 import { SilhouetteGarden } from './modes/garden.js';
@@ -72,7 +72,7 @@ const modes = [
   new ParticleWake(),
   new RippleTank(),
   new EchoChamber(),
-  new SkeletonConstellation(),
+  new AuroraRibbons(),
   new CoralBloom(),
   new SilhouetteGarden(),
 ];
