@@ -50,8 +50,12 @@ Move the mouse and a floating panel appears along the bottom edge with the same
 controls as buttons — mode pins, prev/next, auto, HUD, and fullscreen. It fades
 out (along with the cursor) after a few seconds of stillness.
 
+A locale-aware clock floats near the top of the wall, screensaver style — time and
+date formatted however the browser's locale says (12/24h included).
+
 Query parameters: `?mode=ripple-tank` (pin from boot), `?dwell=180` (seconds per mode),
-`?fade=12` (crossfade seconds), `?cycle=0` (disable auto-cycling).
+`?fade=12` (crossfade seconds), `?cycle=0` (disable auto-cycling), `?clock=0` (hide
+the overlay clock).
 
 ## Kiosk deployment
 
