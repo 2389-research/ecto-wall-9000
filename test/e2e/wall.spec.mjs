@@ -82,6 +82,37 @@ test('auto-cycles, and arrow keys pin / a resumes', async ({ page }) => {
   await expect.poll(() => hudText(page), { timeout: 15_000 }).toContain('[auto]');
 });
 
+test('control panel: pins modes, resumes auto, offers fullscreen, hides when idle', async ({
+  page,
+}) => {
+  await page.goto('/?dwell=60&fade=2');
+  await passGate(page);
+
+  await page.mouse.move(480, 270);
+  await expect(page.locator('#panel')).toBeVisible();
+  await expect(page.locator('#panel [data-action="fullscreen"]')).toBeVisible();
+
+  await page.click('#panel [data-mode="ripple-tank"]');
+  await page.keyboard.press('h');
+  await expect.poll(() => hudText(page), { timeout: 10_000 }).toContain('ripple-tank');
+  expect(await hudText(page)).toContain('[pinned]');
+
+  await page.mouse.move(10, 10); // fresh activity so the panel is interactive
+  await page.click('#panel [data-action="auto"]');
+  await expect.poll(() => hudText(page), { timeout: 10_000 }).toContain('[auto]');
+
+  // Ambient discipline: with no input the panel fades and stops catching clicks.
+  await expect
+    .poll(() => page.evaluate(() => document.body.classList.contains('idle')), {
+      timeout: 8_000,
+    })
+    .toBe(true);
+  const pe = await page.evaluate(
+    () => getComputedStyle(/** @type {Element} */ (document.getElementById('panel'))).pointerEvents,
+  );
+  expect(pe).toBe('none');
+});
+
 test('recovers from WebGL context loss by reloading', async ({ page }) => {
   await page.goto('/?dwell=60&fade=2');
   await passGate(page);

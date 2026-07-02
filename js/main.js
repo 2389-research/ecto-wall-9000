@@ -11,6 +11,7 @@ import { ParticleWake } from './modes/particle.js';
 import { RippleTank } from './modes/ripple.js';
 import { RoomWeather } from './modes/weather.js';
 import { ModeManager } from './modes.js';
+import { initPanel } from './panel.js';
 import { Post } from './post.js';
 import { ema, QualityGovernor, Signals } from './signals.js';
 import { Vision } from './vision.js';
@@ -150,7 +151,18 @@ startBtn.addEventListener('click', startCamera);
   }
 })();
 
-// --- keyboard -----------------------------------------------------------------------------
+// --- keyboard + panel ----------------------------------------------------------------------
+
+function toggleHud() {
+  hud.hidden = !hud.hidden;
+}
+
+function toggleFullscreen() {
+  // Both promises can reject (iframe, kiosk policy, races) — swallow, or a stray
+  // visitor keypress becomes an unhandled-rejection console error.
+  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  else document.documentElement.requestFullscreen().catch(() => {});
+}
 
 document.addEventListener('keydown', (ev) => {
   if (ev.key >= '1' && ev.key <= '9') {
@@ -163,27 +175,28 @@ document.addEventListener('keydown', (ev) => {
   } else if (ev.key === 'a') {
     manager.resumeAuto();
   } else if (ev.key === 'h') {
-    hud.hidden = !hud.hidden;
+    toggleHud();
   } else if (ev.key === 'f') {
-    // Both promises can reject (iframe, kiosk policy, races) — swallow, or a stray
-    // visitor keypress becomes an unhandled-rejection console error.
-    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
-    else document.documentElement.requestFullscreen().catch(() => {});
+    toggleFullscreen();
   }
 });
 
-// --- cursor auto-hide ---------------------------------------------------------------------
+initPanel(el('panel'), manager, { toggleFullscreen, toggleHud });
 
-let cursorTimer = 0;
+// --- idle auto-hide (cursor + panel) --------------------------------------------------------
 
-function wakeCursor() {
-  document.body.classList.remove('hide-cursor');
-  clearTimeout(cursorTimer);
-  cursorTimer = window.setTimeout(() => document.body.classList.add('hide-cursor'), 3000);
+let idleTimer = 0;
+
+function wakeUI() {
+  document.body.classList.remove('idle');
+  clearTimeout(idleTimer);
+  idleTimer = window.setTimeout(() => document.body.classList.add('idle'), 3000);
 }
 
-document.addEventListener('mousemove', wakeCursor);
-wakeCursor();
+document.addEventListener('mousemove', wakeUI);
+document.addEventListener('pointerdown', wakeUI);
+document.addEventListener('keydown', wakeUI);
+wakeUI();
 
 // --- HUD ----------------------------------------------------------------------------------
 

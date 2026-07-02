@@ -31,7 +31,7 @@ body {
   background: #000;
 }
 
-body.hide-cursor {
+body.idle {
   cursor: none;
 }
 
@@ -106,6 +106,65 @@ body.hide-cursor {
   margin-top: 1.4rem;
   font-size: 0.8rem;
   color: #ef9a9a;
+}
+
+/* ---- control panel ---- */
+
+#panel {
+  position: fixed;
+  bottom: 1.2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.3rem;
+  max-width: calc(100vw - 2rem);
+  padding: 0.45rem 0.55rem;
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(207, 216, 220, 0.15);
+  border-radius: 3px;
+  z-index: 5;
+  opacity: 1;
+  transition: opacity 0.35s ease;
+}
+
+body.idle #panel {
+  opacity: 0;
+  pointer-events: none;
+}
+
+#panel button {
+  padding: 0.35rem 0.6rem;
+  font: inherit;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid rgba(207, 216, 220, 0.18);
+  border-radius: 2px;
+  cursor: pointer;
+  transition:
+    color 0.2s,
+    border-color 0.2s,
+    background 0.2s;
+}
+
+#panel button:hover {
+  color: var(--accent);
+  border-color: rgba(127, 219, 202, 0.5);
+}
+
+#panel button.active {
+  color: var(--accent);
+  border-color: rgba(127, 219, 202, 0.7);
+  background: rgba(127, 219, 202, 0.08);
+}
+
+#panel button:disabled {
+  color: var(--dim);
+  opacity: 0.4;
+  cursor: default;
 }
 
 /* ---- debug HUD ---- */
