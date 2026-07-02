@@ -5,3 +5,4 @@ playwright-report/
 scratch-*.mjs
 test/e2e/fixtures/
 dist/
+.private-journal/
