@@ -4,3 +4,4 @@ playwright-report/
 .DS_Store
 scratch-*.mjs
 test/e2e/fixtures/
+dist/

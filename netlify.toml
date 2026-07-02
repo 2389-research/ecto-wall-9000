@@ -1,0 +1,21 @@
+# ABOUTME: Netlify deploy config for ECTO-WALL 9000 — stages only the runtime files
+# ABOUTME: (no build step: files ship byte-identical) and locks down browser permissions.
+
+[build]
+  # Not a build — a packaging step. The site runs as-is; this just keeps
+  # node_modules, tests, docs, and hooks out of the deploy.
+  command = "mkdir -p dist && cp -r index.html css js dist/"
+  publish = "dist"
+
+[build.environment]
+  # devDependencies are test tooling only (playwright, vitest, biome, tsc);
+  # nothing at runtime needs npm, so install nothing.
+  NPM_FLAGS = "--omit=dev"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    # The wall needs the camera and fullscreen, and nothing else — deny the rest
+    # explicitly to match the privacy promise on the gate.
+    Permissions-Policy = "camera=(self), fullscreen=(self), microphone=(), geolocation=()"
+    Referrer-Policy = "no-referrer"
