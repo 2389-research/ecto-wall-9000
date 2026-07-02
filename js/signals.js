@@ -292,6 +292,9 @@ export class Signals {
     this._absence = 0;
     /** @type {{x: number, y: number}[][]} */
     this._prevHands = [];
+    /** @type {{x: number, y: number}[][] | null} */
+    this._handsRef = null;
+    this._lastMatched = 0;
   }
 
   /**
@@ -316,23 +319,30 @@ export class Signals {
       }
     }
 
-    // Hand activity: mean landmark speed across hands, matched by index.
-    // Tiny short-lived objects at inference cadence (~15Hz), not per rAF — acceptable GC load.
-    let speed = 0;
-    let matched = 0;
-    for (let i = 0; i < hands.length; i++) {
-      const h = hands[i];
-      const p = this._prevHands[i];
-      if (p && p.length === h.length) {
-        let s = 0;
-        for (let j = 0; j < h.length; j++) s += Math.hypot(h[j].x - p[j].x, h[j].y - p[j].y);
-        speed += s / h.length;
-        matched++;
+    // Hand activity: mean landmark speed across hands, matched by index. The hands array
+    // is replaced wholesale per inference, so identity gates the work: the delta and the
+    // snapshot copy run only when fresh landmarks arrive (~7.5Hz). Between inferences
+    // inst is 0 by construction (the data hasn't moved), so nothing is computed.
+    let inst = 0;
+    if (hands !== this._handsRef) {
+      let speed = 0;
+      let matched = 0;
+      for (let i = 0; i < hands.length; i++) {
+        const h = hands[i];
+        const p = this._prevHands[i];
+        if (p && p.length === h.length) {
+          let s = 0;
+          for (let j = 0; j < h.length; j++) s += Math.hypot(h[j].x - p[j].x, h[j].y - p[j].y);
+          speed += s / h.length;
+          matched++;
+        }
       }
+      inst = matched ? clamp01(speed / matched / dt / 1.5) : 0;
+      this._prevHands = hands.map((h) => h.map((p) => ({ x: p.x, y: p.y })));
+      this._handsRef = hands;
+      this._lastMatched = matched;
     }
-    const inst = matched ? clamp01(speed / matched / dt / 1.5) : 0;
-    this._prevHands = hands.map((h) => h.map((p) => ({ x: p.x, y: p.y })));
-    this.handActivity = ema(this.handActivity, inst, dt, matched ? 0.35 : 1.2);
+    this.handActivity = ema(this.handActivity, inst, dt, this._lastMatched ? 0.35 : 1.2);
 
     this.history.push(this.motionEnergy, dt);
   }

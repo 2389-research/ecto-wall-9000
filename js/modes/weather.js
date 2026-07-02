@@ -172,7 +172,7 @@ export class RoomWeather {
     this._windSpeed = ema(this._windSpeed, tg.wind ?? 0.012, dt, 4);
 
     // Integrate wind so speed changes never jump the cloud field.
-    this._angle += dt * 0.008;
+    this._angle = (this._angle + dt * 0.008) % (Math.PI * 2); // only ever fed to sin/cos
     this._wind[0] = (this._wind[0] + Math.cos(this._angle) * this._windSpeed * dt) % WIND_WRAP;
     this._wind[1] =
       (this._wind[1] + Math.sin(this._angle) * this._windSpeed * dt * 0.35) % WIND_WRAP;

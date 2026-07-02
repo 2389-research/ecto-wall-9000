@@ -144,6 +144,8 @@ export class Vision {
     this.cameraAlive = false;
     /** @type {(() => void) | null} */
     this.onLost = null;
+    /** @type {Promise<Vision> | null} */
+    this._starting = null;
 
     this.lastVideoTime = -1;
     this._vidDt = 1 / 30;
@@ -218,12 +220,25 @@ export class Vision {
     this.pipe = this._makePipe(w, h);
   }
 
-  /** Start (or restart) the camera. Resolves once frames are flowing. */
-  async start() {
+  /**
+   * Start (or restart) the camera. Resolves once frames are flowing. Concurrent calls
+   * (the gate click racing the 3s retry loop) share one in-flight attempt, so a slow
+   * getUserMedia can't spawn a second stream whose tracks nothing ever stops.
+   */
+  start() {
+    this._starting ??= this._start().finally(() => {
+      this._starting = null;
+    });
+    return this._starting;
+  }
+
+  async _start() {
     const stream = await navigator.mediaDevices.getUserMedia({
       video: { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } },
       audio: false,
     });
+    const old = this.video.srcObject;
+    if (old instanceof MediaStream) for (const t of old.getTracks()) t.stop();
     this.video.srcObject = stream;
     await this.video.play();
     await new Promise((resolve) => {

@@ -165,8 +165,10 @@ document.addEventListener('keydown', (ev) => {
   } else if (ev.key === 'h') {
     hud.hidden = !hud.hidden;
   } else if (ev.key === 'f') {
-    if (document.fullscreenElement) document.exitFullscreen();
-    else document.documentElement.requestFullscreen();
+    // Both promises can reject (iframe, kiosk policy, races) — swallow, or a stray
+    // visitor keypress becomes an unhandled-rejection console error.
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    else document.documentElement.requestFullscreen().catch(() => {});
   }
 });
 
@@ -203,6 +205,13 @@ let t = 0;
 let fps = 60;
 let last = performance.now();
 
+// Reused every frame — the render loop allocates nothing.
+const sigInputs = {
+  energyRaw: 0,
+  poses: /** @type {{x: number, y: number, vis: number}[][]} */ ([]),
+  hands: /** @type {{x: number, y: number}[][]} */ ([]),
+};
+
 /** @param {number} now */
 function frame(now) {
   const dt = Math.min(0.1, Math.max(1e-4, (now - last) / 1000));
@@ -215,7 +224,10 @@ function frame(now) {
   if (governor.scale !== before) applyStage();
 
   vision.update(dt);
-  signals.update({ energyRaw: vision.energyRaw, poses: vision.poses, hands: vision.hands }, dt);
+  sigInputs.energyRaw = vision.energyRaw;
+  sigInputs.poses = vision.poses;
+  sigInputs.hands = vision.hands;
+  signals.update(sigInputs, dt);
   manager.update(dt, t);
   const sceneTex = manager.render(t);
   if (sceneTex) post.render(sceneTex, t);
