@@ -4,6 +4,8 @@
 import { initGL } from './gl.js';
 import { EchoChamber } from './modes/echo.js';
 import { GhostField } from './modes/ghost.js';
+import { ParticleWake } from './modes/particle.js';
+import { RippleTank } from './modes/ripple.js';
 import { ModeManager } from './modes.js';
 import { Post } from './post.js';
 import { ema, QualityGovernor, Signals } from './signals.js';
@@ -54,7 +56,7 @@ const post = new Post(gl);
 // Vision starts at a placeholder size; applyStage() below sets the real one immediately.
 const vision = new Vision(gl, 640, 360);
 
-const modes = [new GhostField(), new EchoChamber()];
+const modes = [new GhostField(), new ParticleWake(), new RippleTank(), new EchoChamber()];
 const manager = new ModeManager(gl, vision, signals, modes, { dwell, fade, auto });
 vision.onMpChange = () => manager.refreshAvailability();
 
