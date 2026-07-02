@@ -3,3 +3,4 @@ test-results/
 playwright-report/
 test/fixtures/*.y4m
 .DS_Store
+scratch-*.mjs

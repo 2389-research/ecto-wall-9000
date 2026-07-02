@@ -198,7 +198,8 @@ export class Vision {
       lumPP: createPingPong(gl, mw, mh, { fmt: 'rgba16f' }),
       flowTarget: createTarget(gl, mw, mh, { fmt: 'rgba16f' }),
       motionPP: createPingPong(gl, mw, mh, { fmt: 'rgba16f' }),
-      energyTarget: createTarget(gl, ENERGY_W, ENERGY_H, { fmt: 'rgba16f' }),
+      // rgba32f so readPixels(RGBA/FLOAT) hits the driver's native path — no conversion stall.
+      energyTarget: createTarget(gl, ENERGY_W, ENERGY_H, { fmt: 'rgba32f' }),
       reader: new AsyncReader(gl, ENERGY_W, ENERGY_H),
     };
   }
