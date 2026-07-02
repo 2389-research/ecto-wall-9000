@@ -108,6 +108,34 @@ body.idle {
   color: #ef9a9a;
 }
 
+/* ---- overlay clock ---- */
+
+#clock {
+  position: fixed;
+  top: 6vh;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+  color: rgba(236, 243, 244, 0.85);
+  text-shadow: 0 2px 30px rgba(0, 0, 0, 0.55);
+  z-index: 4;
+  pointer-events: none;
+  user-select: none;
+}
+
+.clock-date {
+  font-size: clamp(0.85rem, 2vw, 1.5rem);
+  letter-spacing: 0.14em;
+  color: rgba(207, 216, 220, 0.75);
+}
+
+.clock-time {
+  font-size: clamp(3.5rem, 11vw, 10rem);
+  font-weight: 200;
+  line-height: 1.1;
+  letter-spacing: 0.02em;
+}
+
 /* ---- control panel ---- */
 
 #panel {

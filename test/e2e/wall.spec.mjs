@@ -113,6 +113,19 @@ test('control panel: pins modes, resumes auto, offers fullscreen, hides when idl
   expect(pe).toBe('none');
 });
 
+test('overlay clock shows locale time; ?clock=0 hides it', async ({ page }) => {
+  await page.goto('/?dwell=60&fade=2');
+  await passGate(page);
+
+  const time = page.locator('#clock .clock-time');
+  await expect(time).toBeVisible();
+  await expect(time).toHaveText(/\d{1,2}[:.]\d{2}/); // hh:mm in any locale convention
+  await expect(page.locator('#clock .clock-date')).not.toBeEmpty();
+
+  await page.goto('/?clock=0');
+  await expect(page.locator('#clock')).toBeHidden();
+});
+
 test('recovers from WebGL context loss by reloading', async ({ page }) => {
   await page.goto('/?dwell=60&fade=2');
   await passGate(page);
