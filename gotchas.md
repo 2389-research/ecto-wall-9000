@@ -30,3 +30,31 @@ pre-granted), so the button's click path was never exercised.
    `toBeHidden()` (real visibility), not `hasAttribute('hidden')`. Corollary:
    `waitForSelector('#thing[hidden]')` defaults to state `'visible'` and only ever
    resolved *because* of this bug — wait for `('#thing', { state: 'hidden' })` instead.
+
+## 2026-07-14 — Mic permission could never be granted on existing installs
+
+**What happened:** Audio reactivity shipped with the mic prompt tied to the Begin click.
+But the kiosk auto-skip hides the gate whenever the *camera* permission is already
+durable — which is every existing install — and the auto-skip path only starts audio if
+the mic is *already* granted ('prompt' was documented as "waits for the next Begin
+click"). That click can never happen: the only UI that could request the mic is the UI
+the auto-skip removes. Repro (throwaway spec, `test.use({ permissions: ['camera'] })`):
+gate auto-skips, audio getUserMedia count stays 0 forever, clicks on the wall change
+nothing. All 14 e2e stayed green because `playwright.config.js` grants BOTH permissions
+globally and passes `--use-fake-ui-for-media-stream`, so the camera-granted/mic-prompt
+divergence never existed in any test.
+
+**Rules:**
+
+1. **When a code path auto-hides UI, audit every behavior that waits on that UI.**
+   "X waits for the next click of button B" is a bug the moment any path hides B.
+   Grep for the element the fallback path removes; anything gated on it must have a
+   reachable alternative on that path.
+2. **Globally granted e2e permissions are a blind spot** (gotcha #3's inverse: the suite
+   always took the *happy* path). Permission-state divergence — one granted, one
+   prompt/denied — needs its own spec with a per-file `test.use({ permissions: [...] })`
+   override. Playwright quirk: unlisted permissions report 'denied', not 'prompt'; same
+   non-granted code path, but don't assert on the state string.
+3. **Two permissions acquired in sequence are a state machine, not a boolean.** Enumerate
+   all four granted×prompt combinations at design time; the spec only considered
+   both-prompt and both-granted.
