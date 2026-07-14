@@ -52,6 +52,11 @@ export class AudioEngine {
     const stream = await navigator.mediaDevices.getUserMedia({
       audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
     });
+    const track = stream.getAudioTracks()[0];
+    if (!track) {
+      for (const t of stream.getTracks()) t.stop();
+      throw new Error('audio stream has no audio track');
+    }
     if (this._stream) for (const t of this._stream.getTracks()) t.stop();
     this._stream = stream;
     // Normally created inside the Begin-click gesture so it is never born suspended;
@@ -69,7 +74,6 @@ export class AudioEngine {
     this._source.connect(this._analyser);
     this._warm = false;
     this.micAlive = true;
-    const track = stream.getAudioTracks()[0];
     track.addEventListener('ended', () => {
       // Mic unplugged or OS-revoked. No UI consequence — retry quietly from update().
       this.micAlive = false;
