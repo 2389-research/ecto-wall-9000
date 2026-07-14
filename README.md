@@ -12,7 +12,8 @@ Static site. No build step. Raw WebGL2 + MediaPipe Tasks Vision, plain ES module
 ./serve.sh          # serves on port 44678 ("GHOST" on a phone pad)
 ```
 
-Open <http://localhost:44678>, click **begin**, grant the camera.
+Open <http://localhost:44678>, click **begin**, grant the camera and the microphone
+(the mic is optional — deny it and the wall simply doesn't hear).
 Press `f` for fullscreen and walk away.
 
 The camera needs a secure context: `localhost` works out of the box; for a remote
@@ -36,6 +37,12 @@ Modes 5 and 7 use MediaPipe (pose, segmentation) loaded lazily from a CDN. If th
 CDN is unreachable the wall degrades gracefully: those modes leave the roster and the
 motion-only modes keep running.
 
+The wall also listens. A room microphone (granted at the same **begin** click) feeds
+adaptive loudness, bass/mid/treble, and a beat-onset envelope into every mode and the
+global post pass: beats fall as raindrops on the ripple tank, kick the particle swarm,
+pop the newest echo, and plant coral; loudness makes the whole wall breathe a little
+deeper. No mic, no problem — the audio signals just rest at zero.
+
 ## Controls
 
 | Key | Action |
@@ -55,14 +62,15 @@ date formatted however the browser's locale says (12/24h included).
 
 Query parameters: `?mode=ripple-tank` (pin from boot), `?dwell=180` (seconds per mode),
 `?fade=12` (crossfade seconds), `?cycle=0` (disable auto-cycling), `?clock=0` (hide
-the overlay clock).
+the overlay clock), `?audio=0` (disable the microphone entirely).
 
 ## Kiosk deployment
 
 Built to run for weeks unattended:
 
 - **Camera gate auto-skip** — once the camera permission is durable, reboots go straight
-  to the wall with no click.
+  to the wall with no click; the mic joins automatically only if its permission is
+  already durable too (an auto-start never prompts).
 - **WebGL context-loss recovery** — a dead GL context triggers a clean reload
   (all state is ambient by design), with exponential backoff so a sick GPU isn't thrashed.
 - **Camera loss recovery** — an unplugged/revoked camera is retried quietly every 3 s
@@ -79,20 +87,22 @@ chromium --kiosk --autoplay-policy=no-user-gesture-required \
   --use-fake-ui-for-media-stream http://localhost:44678
 ```
 
-(`--use-fake-ui-for-media-stream` auto-grants the camera prompt; alternatively grant it
-once by hand — the permission persists.)
+(`--use-fake-ui-for-media-stream` auto-grants the camera and microphone prompts;
+alternatively grant them once by hand — the permissions persist.)
 
 ## Privacy
 
-Camera frames never leave the machine. There is no recording, no transmission, no
-storage — frames live in GPU textures for exactly as long as an effect needs them.
-MediaPipe inference runs locally (models are fetched from a CDN once and cached).
+Camera frames and microphone audio never leave the machine. There is no recording, no
+transmission, no storage — frames live in GPU textures for exactly as long as an effect
+needs them, and audio is analyzed in-memory into a handful of scalars (loudness, three
+bands, a beat envelope) that exist for one frame. MediaPipe inference runs locally
+(models are fetched from a CDN once and cached).
 
 ## Development
 
 ```sh
 npm install
-npm test                # unit (vitest) + e2e (playwright, fake y4m camera)
+npm test                # unit (vitest) + e2e (playwright, fake y4m camera + WAV mic)
 npm run test:unit
 npm run test:e2e
 npm run typecheck       # tsc strict checkJs, no emit
@@ -112,22 +122,25 @@ index.html            start gate, canvas, HUD
 js/main.js            boot + conductor: render loop, keyboard, HUD, quality governor
 js/gl.js              WebGL2 helpers: programs, targets, ping-pong, uploads, noise GLSL
 js/vision.js          camera capture, motion field, async readback, lazy MediaPipe tasks
+js/audio.js           microphone capture + FFT analysis into raw level/band/flux scalars
 js/signals.js         pure logic core (unit-tested): smoothing, geometry, scheduler, governor
 js/modes.js           ModeManager: lazy init/dispose, crossfades, availability
 js/modes/*.js         one self-contained file per mode (GLSL inline)
 js/post.js            shared grain / vignette / slow luminance breathing
 js/kiosk.js           context-loss reload policy + screen wake lock
 test/unit/            vitest specs for the pure logic
-test/e2e/             playwright specs + y4m fixture generator
+test/e2e/             playwright specs + y4m/WAV fixture generators
 ```
 
 Design spec: `docs/superpowers/specs/2026-07-02-ecto-wall-design.md`.
+Audio design spec: `docs/superpowers/specs/2026-07-14-audio-reactivity-design.md`.
 
 ## Requirements
 
 WebGL2 with `EXT_color_buffer_float` (any GPU from the last decade), a webcam, and a
-Chromium-family browser for the smoothest ride. Firefox and Safari work for the
-motion-only modes; MediaPipe GPU delegate support varies.
+Chromium-family browser for the smoothest ride. A microphone is optional — the wall
+hears with one and simply doesn't without. Firefox and Safari work for the motion-only
+modes; MediaPipe GPU delegate support varies.
 
 ---
 

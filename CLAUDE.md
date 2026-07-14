@@ -21,5 +21,6 @@ Ambient camera-driven generative video wall. Static site, no build step, raw Web
 - GLSL lives inline in each mode file as template literals — a mode is one self-contained file.
 - Zero per-frame allocations in the render loop.
 - `js/signals.js` stays pure (no DOM/GL imports) — it's the unit-testable core.
-- Camera frames never leave the machine. No recording, no transmission. Don't add any.
+- Camera frames and microphone audio never leave the machine. No recording, no
+  transmission. Don't add any.
 - Spec: `docs/superpowers/specs/2026-07-02-ecto-wall-design.md`
