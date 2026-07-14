@@ -288,7 +288,7 @@ function frame(now) {
   sigInputs.poses = vision.poses;
   sigInputs.hands = vision.hands;
   sigInputs.audioLevelRaw = audio.levelRaw;
-  sigInputs.audioBandsRaw = audio.bandsRaw;
+  sigInputs.audioBandsRaw = audio.bandsRaw; // reference swap — no copy; signals.update() reads audio.bandsRaw's data directly
   sigInputs.audioFluxRaw = audio.fluxRaw;
   signals.update(sigInputs, dt);
   manager.update(dt, t);

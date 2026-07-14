@@ -48,6 +48,7 @@ void main() {
 }`;
 
 const POINT_VS = `#version 300 es
+precision highp float;
 uniform sampler2D uState;
 uniform int uDim;
 uniform float uTreble; // 0-1: sparkle — hot cores swell on treble
