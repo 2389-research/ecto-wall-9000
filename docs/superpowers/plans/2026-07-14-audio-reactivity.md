@@ -1743,28 +1743,31 @@ export function makeSeeder() {
 }
 ```
 
-3d. Replace `stepSeeder` (and extend its JSDoc `st`/`env` types to `{seed: Float32Array, cooldown: number, beatCooldown: number}` and `{motion: number, dt: number, rand: () => number, beat?: number}`, plus one doc sentence: "A strong beat plants a seed too — music grows the reef — behind its own short refractory."):
+3d. Replace `stepSeeder`, extracting the seed-planting shared by the beat and ambient branches into a module-private helper (extend the `stepSeeder` JSDoc `st`/`env` types to `{seed: Float32Array, cooldown: number, beatCooldown: number}` and `{motion: number, dt: number, rand: () => number, beat?: number}`, plus one doc sentence: "A strong beat plants a seed too — music grows the reef — behind its own short refractory."):
 
 ```js
+/**
+ * Write a fresh random seed (position, radius, strength) into the seeder's slot.
+ * @param {{seed: Float32Array}} st @param {() => number} rand
+ */
+function plantSeed(st, rand) {
+  st.seed[0] = 0.1 + rand() * 0.8;
+  st.seed[1] = 0.1 + rand() * 0.8;
+  st.seed[2] = 0.01 + rand() * 0.012;
+  st.seed[3] = 0.9;
+}
+
 export function stepSeeder(st, env) {
   st.cooldown -= env.dt;
   st.beatCooldown -= env.dt;
   st.seed[3] = 0;
   if ((env.beat ?? 0) > BEAT_SEED_MIN && st.beatCooldown <= 0) {
-    st.seed[0] = 0.1 + env.rand() * 0.8;
-    st.seed[1] = 0.1 + env.rand() * 0.8;
-    st.seed[2] = 0.01 + env.rand() * 0.012;
-    st.seed[3] = 0.9;
+    plantSeed(st, env.rand);
     st.beatCooldown = BEAT_SEED_COOLDOWN;
     return st;
   }
   if (st.cooldown <= 0) {
-    if (env.motion < 0.12) {
-      st.seed[0] = 0.1 + env.rand() * 0.8;
-      st.seed[1] = 0.1 + env.rand() * 0.8;
-      st.seed[2] = 0.01 + env.rand() * 0.012;
-      st.seed[3] = 0.9;
-    }
+    if (env.motion < 0.12) plantSeed(st, env.rand);
     st.cooldown = 5 + env.rand() * 6;
   }
   return st;
