@@ -156,14 +156,15 @@ export class EchoChamber {
     if (!ctx || !this.slots || !this.renderProg) return;
     const gl = ctx.gl;
     computeTaps(this.clock, TAPS, SLOT_COUNT, this._taps);
+    const beatPop = 1 + ctx.signals.beat * AUDIO_POP;
     for (let i = 0; i < TAPS.length; i++) {
       const tap = this._taps[i];
       this._frac[i] = tap.frac;
       // Echoes awaken: each tap fades in over 2s once its history exists.
-      this._w[i] = tap.valid ? BASE_WEIGHT[i] * Math.min(1, (this.clock - TAPS[i]) / 2) : 0;
+      // The newest echo (i === 0) pops on the beat; the older ones stay stately.
+      const pop = i === 0 ? beatPop : 1;
+      this._w[i] = tap.valid ? BASE_WEIGHT[i] * Math.min(1, (this.clock - TAPS[i]) / 2) * pop : 0;
     }
-    // The newest echo pops on the beat; the older ones stay stately.
-    this._w[0] *= 1 + ctx.signals.beat * AUDIO_POP;
     bindTarget(gl, target);
     const p = this.renderProg.use().setTex('uCam', ctx.vision.camTex, 0);
     for (let i = 0; i < TAPS.length; i++) {

@@ -36,6 +36,8 @@ export class AudioEngine {
     this._retryT = 0;
     /** @type {Promise<void> | null} */
     this._starting = null;
+    // stop() may race an in-flight _start(); incrementing _gen signals abandonment.
+    this._gen = 0;
   }
 
   /** Idempotent while a start is in flight — callers can race freely. */
@@ -47,11 +49,18 @@ export class AudioEngine {
   }
 
   async _start() {
+    // Capture the generation token before any await so a concurrent stop() can be detected.
+    const gen = this._gen;
     // Browser speech processing (echo cancel, noise suppression, AGC) eats the ambient
     // texture we render and fights our own adaptive gain — ask for the raw room.
     const stream = await navigator.mediaDevices.getUserMedia({
       audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
     });
+    // stop() may have been called while getUserMedia was pending — bail without touching state.
+    if (gen !== this._gen) {
+      for (const t of stream.getTracks()) t.stop();
+      return;
+    }
     const track = stream.getAudioTracks()[0];
     if (!track) {
       for (const t of stream.getTracks()) t.stop();
@@ -63,6 +72,11 @@ export class AudioEngine {
     // the kiosk auto-start has no gesture, so resume() covers that path too.
     this._ctx ??= new AudioContext();
     if (this._ctx.state === 'suspended') await this._ctx.resume();
+    // stop() may have been called while ctx.resume() was pending — bail cleanly.
+    if (gen !== this._gen) {
+      for (const t of stream.getTracks()) t.stop();
+      return;
+    }
     if (!this._analyser) {
       this._analyser = this._ctx.createAnalyser();
       this._analyser.fftSize = FFT_SIZE;
@@ -112,6 +126,7 @@ export class AudioEngine {
 
   /** Release the mic and close the context (test teardown; the wall itself never stops). */
   stop() {
+    this._gen++; // signal any in-flight _start() to abandon after its next await
     this._retry = false;
     this.micAlive = false;
     if (this._stream) for (const t of this._stream.getTracks()) t.stop();
