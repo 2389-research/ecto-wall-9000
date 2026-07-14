@@ -3,6 +3,11 @@
 // @ts-check
 import { bindTarget, createPingPong, NOISE_GLSL, Program } from '../gl.js';
 
+const AUDIO_FEED = 0.0012; // loudness → Gray-Scott feed nudge (a loud room = lusher reef)
+const FEED_MAX = 0.0589; // hard ceiling keeping f inside the coral-forming band
+const BEAT_SEED_MIN = 0.85; // beat envelope threshold that plants a seed
+const BEAT_SEED_COOLDOWN = 0.4; // seconds between beat-planted seeds
+
 /**
  * Feed/kill/steps for this frame. The sine drifts are tuned to stay inside the
  * pattern-forming band of the Gray-Scott parameter map (coral, mitosis, worms) —
@@ -11,10 +16,13 @@ import { bindTarget, createPingPong, NOISE_GLSL, Program } from '../gl.js';
  * @param {number} t wall-clock seconds (wraps hourly upstream; a rare phase hop is fine)
  * @param {number} dt frame seconds
  * @param {number} motion 0..1 room motion energy
+ * @param {number} [audioLevel] smoothed room loudness 0–1 — a loud room feeds the reef
  * @param {{f: number, k: number, steps: number}} [out]
  */
-export function coralParams(t, dt, motion, out = { f: 0, k: 0, steps: 0 }) {
-  out.f = 0.0545 + 0.0035 * Math.sin(t * 0.011);
+export function coralParams(t, dt, motion, audioLevel = 0, out = { f: 0, k: 0, steps: 0 }) {
+  const drift = 0.0545 + 0.0035 * Math.sin(t * 0.011);
+  // Loudness feeds the reef, clamped inside the band the drift test guards.
+  out.f = Math.min(FEED_MAX, drift + AUDIO_FEED * Math.min(1, Math.max(0, audioLevel)));
   out.k = 0.062 + 0.0022 * Math.sin(t * 0.017 + 2.1);
   const rate = 480 + 480 * Math.min(1, Math.max(0, motion));
   out.steps = Math.max(1, Math.min(24, Math.round(rate * dt)));
@@ -23,7 +31,18 @@ export function coralParams(t, dt, motion, out = { f: 0, k: 0, steps: 0 }) {
 
 /** Fresh ambient-seed scheduler: dormant, first check a few seconds after init. */
 export function makeSeeder() {
-  return { seed: new Float32Array(4), cooldown: 3 };
+  return { seed: new Float32Array(4), cooldown: 3, beatCooldown: 0 };
+}
+
+/**
+ * Write a fresh random seed (position, radius, strength) into the seeder's slot.
+ * @param {{seed: Float32Array}} st @param {() => number} rand
+ */
+function plantSeed(st, rand) {
+  st.seed[0] = 0.1 + rand() * 0.8;
+  st.seed[1] = 0.1 + rand() * 0.8;
+  st.seed[2] = 0.01 + rand() * 0.012;
+  st.seed[3] = 0.9;
 }
 
 /**
@@ -31,19 +50,21 @@ export function makeSeeder() {
  * random spot every several seconds so an empty wall still grows; a moving room
  * seeds itself through the motion field, so the scheduler just re-arms quietly.
  * The seed (x, y, radius, strength) lives for exactly one call.
- * @param {{seed: Float32Array, cooldown: number}} st
- * @param {{motion: number, dt: number, rand: () => number}} env
+ * A strong beat plants a seed too — music grows the reef — behind its own short refractory.
+ * @param {{seed: Float32Array, cooldown: number, beatCooldown: number}} st
+ * @param {{motion: number, dt: number, rand: () => number, beat?: number}} env
  */
 export function stepSeeder(st, env) {
   st.cooldown -= env.dt;
+  st.beatCooldown -= env.dt;
   st.seed[3] = 0;
+  if ((env.beat ?? 0) > BEAT_SEED_MIN && st.beatCooldown <= 0) {
+    plantSeed(st, env.rand);
+    st.beatCooldown = BEAT_SEED_COOLDOWN;
+    return st;
+  }
   if (st.cooldown <= 0) {
-    if (env.motion < 0.12) {
-      st.seed[0] = 0.1 + env.rand() * 0.8;
-      st.seed[1] = 0.1 + env.rand() * 0.8;
-      st.seed[2] = 0.01 + env.rand() * 0.012;
-      st.seed[3] = 0.9;
-    }
+    if (env.motion < 0.12) plantSeed(st, env.rand);
     st.cooldown = 5 + env.rand() * 6;
   }
   return st;
@@ -136,6 +157,8 @@ export class CoralBloom {
     this._params = { f: 0.0545, k: 0.062, steps: 8 };
     this._seeder = makeSeeder();
     this._seed = [0, 0, 0, 0];
+    // Reused stepSeeder env — the render loop allocates nothing.
+    this._env = { motion: 0, dt: 0, rand: Math.random, beat: 0 };
   }
 
   /** @param {import('../modes.js').ModeCtx} ctx */
@@ -168,8 +191,11 @@ export class CoralBloom {
     const ctx = this.ctx;
     if (!ctx || !this.sim || !this.simProg) return;
     const gl = ctx.gl;
-    const p = coralParams(t, dt, ctx.signals.motionEnergy, this._params);
-    stepSeeder(this._seeder, { motion: ctx.signals.motionEnergy, dt, rand: Math.random });
+    const p = coralParams(t, dt, ctx.signals.motionEnergy, ctx.signals.audioLevel, this._params);
+    this._env.motion = ctx.signals.motionEnergy;
+    this._env.dt = dt;
+    this._env.beat = ctx.signals.beat;
+    stepSeeder(this._seeder, this._env);
     for (let i = 0; i < 4; i++) this._seed[i] = this._seeder.seed[i];
 
     for (let i = 0; i < p.steps; i++) {

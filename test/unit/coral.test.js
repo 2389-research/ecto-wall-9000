@@ -7,7 +7,7 @@ describe('coralParams', () => {
   it('keeps feed and kill inside the coral-growing band across hours of drift', () => {
     const out = { f: 0, k: 0, steps: 0 };
     for (let t = 0; t < 4000; t += 3.7) {
-      coralParams(t, 1 / 60, 0, out);
+      coralParams(t, 1 / 60, 0, 0, out);
       expect(out.f).toBeGreaterThan(0.05);
       expect(out.f).toBeLessThan(0.059);
       expect(out.k).toBeGreaterThan(0.0595);
@@ -28,7 +28,7 @@ describe('coralParams', () => {
 
   it('writes into a provided out object instead of allocating', () => {
     const out = { f: 0, k: 0, steps: 0 };
-    expect(coralParams(0, 1 / 60, 0, out)).toBe(out);
+    expect(coralParams(0, 1 / 60, 0, 0, out)).toBe(out);
   });
 });
 
@@ -68,5 +68,43 @@ describe('ambient seeder', () => {
     stepSeeder(st, { motion: 0, dt: 0.016, rand });
     stepSeeder(st, { motion: 0, dt: 0.016, rand });
     expect(st.seed[3]).toBe(0); // still cooling down
+  });
+});
+
+describe('coralParams audio', () => {
+  it('loudness nudges the feed rate without leaving the coral band', () => {
+    const base = coralParams(10, 1 / 60, 0);
+    const loud = coralParams(10, 1 / 60, 0, 1);
+    expect(loud.f - base.f).toBeCloseTo(0.0012, 6);
+    expect(loud.k).toBe(base.k);
+    for (let t = 0; t < 4000; t += 3.7) {
+      expect(coralParams(t, 1 / 60, 0, 1).f).toBeLessThan(0.059);
+    }
+  });
+});
+
+describe('beat seeding', () => {
+  const rand = () => 0.5;
+
+  it('a strong beat drops a seed even in a moving room', () => {
+    const st = makeSeeder();
+    stepSeeder(st, { motion: 0.8, dt: 1 / 60, rand, beat: 0.95 });
+    expect(st.seed[3]).toBeCloseTo(0.9, 6);
+  });
+
+  it('beat seeds respect their own refractory', () => {
+    const st = makeSeeder();
+    stepSeeder(st, { motion: 0.8, dt: 1 / 60, rand, beat: 0.95 });
+    stepSeeder(st, { motion: 0.8, dt: 1 / 60, rand, beat: 0.95 });
+    expect(st.seed[3]).toBe(0); // still cooling down
+    for (let i = 0; i < 30; i++) stepSeeder(st, { motion: 0.8, dt: 1 / 60, rand, beat: 0 });
+    stepSeeder(st, { motion: 0.8, dt: 1 / 60, rand, beat: 0.95 });
+    expect(st.seed[3]).toBeCloseTo(0.9, 6);
+  });
+
+  it('a weak envelope does not seed', () => {
+    const st = makeSeeder();
+    stepSeeder(st, { motion: 0.8, dt: 1 / 60, rand, beat: 0.5 });
+    expect(st.seed[3]).toBe(0);
   });
 });
