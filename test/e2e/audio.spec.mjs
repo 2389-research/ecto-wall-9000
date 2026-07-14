@@ -36,9 +36,7 @@ test('mic denied: the wall boots, cycles, and audio rests at zero', async ({ pag
   await page.addInitScript(() => {
     const orig = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
     navigator.mediaDevices.getUserMedia = (c) =>
-      c && c.audio
-        ? Promise.reject(new DOMException('Permission denied', 'NotAllowedError'))
-        : orig(c);
+      c?.audio ? Promise.reject(new DOMException('Permission denied', 'NotAllowedError')) : orig(c);
   });
   await page.goto('/?dwell=2&fade=1');
   await passGate(page);
@@ -67,7 +65,7 @@ test('?audio=0 disables audio entirely: no mic request, no AudioContext', async 
     window.__audioCtxCount = 0;
     const orig = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
     navigator.mediaDevices.getUserMedia = (c) => {
-      if (c && c.audio) window.__micRequests += 1;
+      if (c?.audio) window.__micRequests += 1;
       return orig(c);
     };
     const AC = window.AudioContext;
