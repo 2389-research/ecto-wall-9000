@@ -1,7 +1,10 @@
 // ABOUTME: Ripple Tank mode — a wave-equation water surface; room motion is a moving wave
 // ABOUTME: source, and the render shows the camera's world refracted through dark water.
 // @ts-check
-import { bindTarget, createPingPong, Program } from '../gl.js';
+import { bindTarget, createPingPong, NOISE_GLSL, Program } from '../gl.js';
+
+const AUDIO_DROP = 0.09; // beat raindrop impulse height
+const AUDIO_CHOP = 0.012; // fine ambient chop amplitude at full loudness
 
 // Wave state texel: R = height now, G = height previous step.
 const SIM_FS = `#version 300 es
@@ -9,8 +12,12 @@ precision highp float;
 uniform sampler2D uWave;
 uniform sampler2D uMotion;
 uniform vec2 uPx;
+uniform float uT;
+uniform vec3 uDrop; // xy: raindrop uv, z: impulse height (beat-driven)
+uniform float uChop; // fine ambient chop amplitude (loudness-driven)
 in vec2 vUV;
 out vec4 o;
+${NOISE_GLSL}
 void main() {
   vec2 w = texture(uWave, vUV).rg;
   float l = texture(uWave, vUV + vec2(uPx.x, 0.0)).r
@@ -25,6 +32,10 @@ void main() {
   // Motion is a wave source: a walker drags a wake, a wave hello makes rings.
   float m = texture(uMotion, vUV).z;
   nh += smoothstep(0.15, 0.85, m) * 0.055;
+
+  // Sound: beats fall as raindrops at a wandering point; loudness stirs a fine chop.
+  nh += uDrop.z * smoothstep(0.03, 0.0, distance(vUV, uDrop.xy));
+  nh += (vnoise(vUV * 42.0 + vec2(uT * 3.1, -uT * 2.3)) - 0.5) * uChop;
 
   nh = clamp(nh, -2.0, 2.0);
   o = vec4(nh, w.r, 0.0, 1.0);
@@ -69,6 +80,7 @@ export class RippleTank {
     /** @type {import('../modes.js').ModeCtx | null} */
     this.ctx = null;
     this._px = [0, 0];
+    this._drop = [0.5, 0.5, 0];
   }
 
   /** @param {import('../modes.js').ModeCtx} ctx */
@@ -89,17 +101,24 @@ export class RippleTank {
     this._px[1] = 1 / wh;
   }
 
-  /** @param {number} _dt @param {number} _t */
-  update(_dt, _t) {
+  /** @param {number} _dt @param {number} t */
+  update(_dt, t) {
     const ctx = this.ctx;
     if (!ctx || !this.wave || !this.simProg) return;
     const gl = ctx.gl;
+    // The raindrop point wanders a slow lissajous; the beat envelope sets splash height.
+    this._drop[0] = 0.5 + 0.34 * Math.sin(t * 0.29 + 1.7);
+    this._drop[1] = 0.5 + 0.3 * Math.sin(t * 0.41);
+    this._drop[2] = ctx.signals.beat * AUDIO_DROP;
     bindTarget(gl, this.wave.write);
     this.simProg
       .use()
       .setTex('uWave', this.wave.read.tex, 0)
       .setTex('uMotion', ctx.vision.motionTex, 1)
       .set('uPx', this._px)
+      .set('uT', t)
+      .set('uDrop', this._drop)
+      .set('uChop', ctx.signals.audioLevel * AUDIO_CHOP)
       .draw();
     this.wave.swap();
   }
