@@ -59,6 +59,7 @@ test('mic denied: the wall boots, cycles, and audio rests at zero', async ({ pag
 });
 
 test('?audio=0 disables audio entirely: no mic request, no AudioContext', async ({ page }) => {
+  const con = watchConsole(page);
   // Count (not mock) the audio entry points; real calls pass straight through.
   await page.addInitScript(() => {
     window.__micRequests = 0;
@@ -86,4 +87,5 @@ test('?audio=0 disables audio entirely: no mic request, no AudioContext', async 
   expect(await hudNum(page, 'beat')).toBe(0);
   expect(await page.evaluate(() => window.__micRequests)).toBe(0);
   expect(await page.evaluate(() => window.__audioCtxCount)).toBe(0);
+  expect(con.errors).toEqual([]);
 });
