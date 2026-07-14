@@ -77,8 +77,8 @@ To the microphone what `Vision` is to the camera. I/O and array plumbing only �
 - Mic track ends (unplugged, OS-revoked) → internal 3 s retry loop; `micAlive` flag for
   the HUD. Unlike camera loss there is no UI consequence, so the retry stays inside the
   engine rather than in `main.js`.
-- `stop()` releases the track and closes the context (used by `?audio=0` never-start and
-  tests).
+- `stop()` releases the track and closes the context (test teardown; with `?audio=0` the
+  engine is never constructed at all).
 
 ### Pure math — `signals.js` additions
 
@@ -125,7 +125,7 @@ Each is a handful of lines in its mode file, constants at top, palette untouched
 | Silhouette Garden | `beat` sprinkles growth seeds along silhouette edges; `audioLevel` nudges growth rate |
 
 **Global post pass:** the ~20 s luminance breathing gains a small `audioLevel`-following
-component plus a ~1.5% `beat` micro-pulse. The whole wall is audio-alive from the moment
+component (~2%) plus a ~1.5% `beat` micro-pulse. The whole wall is audio-alive from the moment
 this lands — every mode, even mid-crossfade — which lets per-mode mappings stay subtle.
 
 The crossfade dissolve and the cycle scheduler stay audio-blind (considered
