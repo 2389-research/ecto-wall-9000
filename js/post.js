@@ -26,7 +26,7 @@ void main() {
   float vig = smoothstep(0.95, 0.35, d);
   c *= mix(0.72, 1.0, vig);
 
-  // slow luminance breathing (computed on CPU, ~±2% over 20s)
+  // slow luminance breathing + audio swell (computed on CPU)
   c *= uBreathe;
 
   // animated film grain
@@ -51,11 +51,15 @@ export class Post {
    * Render the scene texture to the canvas with the film pass applied.
    * @param {WebGLTexture} sceneTex
    * @param {number} t seconds (wrapped)
+   * @param {number} [audioLevel] room loudness 0–1
+   * @param {number} [beat] onset envelope 0–1
    */
-  render(sceneTex, t) {
+  render(sceneTex, t, audioLevel = 0, beat = 0) {
     const gl = this.gl;
     bindTarget(gl, null);
-    const breathe = 1 + 0.02 * Math.sin((2 * Math.PI * t) / 20);
+    // The slow ~20s breath, plus the room's sound: ~2% loudness swell, ~1.5% beat pulse.
+    const breathe =
+      (1 + 0.02 * Math.sin((2 * Math.PI * t) / 20)) * (1 + 0.02 * audioLevel + 0.015 * beat);
     this.prog
       .use()
       .setTex('uScene', sceneTex, 0)

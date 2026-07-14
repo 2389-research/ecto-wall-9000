@@ -293,7 +293,7 @@ function frame(now) {
   signals.update(sigInputs, dt);
   manager.update(dt, t);
   const sceneTex = manager.render(t);
-  if (sceneTex) post.render(sceneTex, t);
+  if (sceneTex) post.render(sceneTex, t, signals.audioLevel, signals.beat);
 
   requestAnimationFrame(frame);
 }
