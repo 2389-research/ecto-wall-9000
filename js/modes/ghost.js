@@ -3,6 +3,9 @@
 // @ts-check
 import { bindTarget, createPingPong, NOISE_GLSL, Program } from '../gl.js';
 
+const AUDIO_DEPOSIT = 0.8; // beat boost to fresh trail deposits
+const AUDIO_HEAT = 0.3; // steady loudness boost to fresh trail deposits
+
 // Trail state texture: R = presence energy, G = age in seconds.
 const UPDATE_FS = `#version 300 es
 precision highp float;
@@ -11,6 +14,7 @@ uniform sampler2D uMotion;
 uniform vec2 uPx;
 uniform float uDt;
 uniform float uDecay;
+uniform float uAudio; // beat + loudness boost to fresh deposits
 in vec2 vUV;
 out vec4 o;
 void main() {
@@ -24,7 +28,8 @@ void main() {
             + texture(uPrev, adv - vec2(0.0, uPx.y));
   vec4 prev = mix(center, blur * 0.25, 0.22); // slow outward diffusion
 
-  float deposit = smoothstep(0.12, 0.65, mo.z);
+  // Sound brightens what the room is writing right now — never the stored past.
+  float deposit = smoothstep(0.12, 0.65, mo.z) * (1.0 + uAudio);
   float energy = max(prev.r * uDecay, deposit);
   float age = mix(min(prev.g + uDt, 120.0), 0.0, clamp(deposit * 2.0, 0.0, 1.0));
   o = vec4(energy, age, 0.0, 1.0);
@@ -106,6 +111,7 @@ export class GhostField {
       .set('uPx', this._px)
       .set('uDt', dt)
       .set('uDecay', Math.exp(-dt / GhostField.TAU))
+      .set('uAudio', ctx.signals.beat * AUDIO_DEPOSIT + ctx.signals.audioLevel * AUDIO_HEAT)
       .draw();
     this.trail.swap();
   }
