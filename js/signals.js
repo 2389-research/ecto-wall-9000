@@ -415,14 +415,14 @@ export class OnsetDetector {
    * @param {number} flux @param {number} dt
    */
   update(flux, dt) {
-    this._sinceOnset += dt;
-    this.beat *= Math.exp(-dt / this.decayTau);
     if (!this._primed) {
       // Prime the running mean on the first sample so mic turn-on isn't a beat.
       this.avg = flux;
       this._primed = true;
-      return this.beat;
+      return 0;
     }
+    this._sinceOnset += dt;
+    this.beat *= Math.exp(-dt / this.decayTau);
     const fires =
       flux > this.fluxFloor &&
       flux > this.avg * this.sensitivity &&
