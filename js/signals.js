@@ -19,6 +19,9 @@ function clamp01(x) {
   return Math.min(1, Math.max(0, x));
 }
 
+// Default audio bands when no mic input arrives; shared and never written.
+const ZERO_BANDS = new Float32Array(3);
+
 /**
  * Smoothstep crossfade envelope: eased at both ends, 0.5 at midpoint.
  * @param {number} x raw fade progress
@@ -438,7 +441,8 @@ export class OnsetDetector {
 
 /**
  * The room's smoothed nervous system. Fed raw per-frame inputs, exposes eased values
- * every mode reads: motionEnergy, personCount, handActivity, and long-run pressure.
+ * every mode reads: motionEnergy, personCount, handActivity, long-run pressure, and the
+ * audio senses — audioLevel, bass, mid, treble, and the beat envelope.
  */
 export class Signals {
   constructor() {
@@ -452,14 +456,29 @@ export class Signals {
     /** @type {{x: number, y: number}[][] | null} */
     this._handsRef = null;
     this._lastMatched = 0;
+    this.audioLevel = 0;
+    this.bass = 0;
+    this.mid = 0;
+    this.treble = 0;
+    this.beat = 0;
+    this._levelGain = new AutoGain();
+    this._bandGains = [new AutoGain(), new AutoGain(), new AutoGain()];
+    this._onset = new OnsetDetector();
   }
 
   /**
-   * @param {{energyRaw?: number, poses?: {x: number, y: number}[][], hands?: {x: number, y: number}[][]}} inputs
+   * @param {{energyRaw?: number, poses?: {x: number, y: number}[][], hands?: {x: number, y: number}[][], audioLevelRaw?: number, audioBandsRaw?: Float32Array, audioFluxRaw?: number}} inputs
    * @param {number} dt
    */
   update(inputs, dt) {
-    const { energyRaw = 0, poses = [], hands = [] } = inputs;
+    const {
+      energyRaw = 0,
+      poses = [],
+      hands = [],
+      audioLevelRaw = 0,
+      audioBandsRaw = ZERO_BANDS,
+      audioFluxRaw = 0,
+    } = inputs;
     this.motionEnergy = ema(this.motionEnergy, clamp01(energyRaw), dt, 0.5);
 
     // Person count: rises instantly, falls only after 2s of sustained absence
@@ -500,6 +519,14 @@ export class Signals {
       this._lastMatched = matched;
     }
     this.handActivity = ema(this.handActivity, inst, dt, this._lastMatched ? 0.35 : 1.2);
+
+    // Audio: each raw signal through its own adaptive gain, then a short smoothing EMA.
+    // With no mic these inputs sit at zero and every field rests at exact zero.
+    this.audioLevel = ema(this.audioLevel, this._levelGain.update(audioLevelRaw, dt), dt, 0.25);
+    this.bass = ema(this.bass, this._bandGains[0].update(audioBandsRaw[0], dt), dt, 0.15);
+    this.mid = ema(this.mid, this._bandGains[1].update(audioBandsRaw[1], dt), dt, 0.15);
+    this.treble = ema(this.treble, this._bandGains[2].update(audioBandsRaw[2], dt), dt, 0.15);
+    this.beat = this._onset.update(audioFluxRaw, dt);
 
     this.history.push(this.motionEnergy, dt);
   }

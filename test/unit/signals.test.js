@@ -291,6 +291,83 @@ describe('Signals', () => {
     for (let i = 0; i < 120; i++) s.update({ energyRaw: 0.8, poses: [], hands: [] }, 1);
     expect(s.pressure).toBeGreaterThan(0.5);
   });
+
+  it('audio at rest reads exact zero with no special-casing', () => {
+    const s = new Signals();
+    for (let i = 0; i < 300; i++) s.update({ energyRaw: 0, poses: [], hands: [] }, 1 / 60);
+    expect(s.audioLevel).toBe(0);
+    expect(s.bass).toBe(0);
+    expect(s.mid).toBe(0);
+    expect(s.treble).toBe(0);
+    expect(s.beat).toBe(0);
+  });
+
+  it('normalizes level through adaptive gain: peaks read high, room tone reads low', () => {
+    const s = new Signals();
+    const bands = new Float32Array(3);
+    const inp = {
+      energyRaw: 0,
+      poses: [],
+      hands: [],
+      audioLevelRaw: 0.3,
+      audioBandsRaw: bands,
+      audioFluxRaw: 0,
+    };
+    for (let i = 0; i < 1200; i++) {
+      inp.audioLevelRaw = i % 20 < 2 ? 0.9 : 0.3;
+      s.update(inp, 1 / 60);
+    }
+    inp.audioLevelRaw = 0.9; // hold a peak so the short smoothing EMA catches up
+    for (let i = 0; i < 30; i++) s.update(inp, 1 / 60);
+    expect(s.audioLevel).toBeGreaterThan(0.5);
+    inp.audioLevelRaw = 0.3; // back to room tone
+    for (let i = 0; i < 60; i++) s.update(inp, 1 / 60);
+    expect(s.audioLevel).toBeLessThan(0.2);
+  });
+
+  it('fires beat from a flux spike and decays it', () => {
+    const s = new Signals();
+    const bands = new Float32Array(3);
+    const inp = {
+      energyRaw: 0,
+      poses: [],
+      hands: [],
+      audioLevelRaw: 0,
+      audioBandsRaw: bands,
+      audioFluxRaw: 0.01,
+    };
+    for (let i = 0; i < 120; i++) s.update(inp, 1 / 60);
+    inp.audioFluxRaw = 0.3;
+    s.update(inp, 1 / 60);
+    expect(s.beat).toBe(1);
+    inp.audioFluxRaw = 0.01;
+    for (let i = 0; i < 30; i++) s.update(inp, 1 / 60);
+    expect(s.beat).toBeLessThan(0.2);
+  });
+
+  it('routes each band through its own gain', () => {
+    const s = new Signals();
+    const bands = new Float32Array(3);
+    const inp = {
+      energyRaw: 0,
+      poses: [],
+      hands: [],
+      audioLevelRaw: 0,
+      audioBandsRaw: bands,
+      audioFluxRaw: 0,
+    };
+    for (let i = 0; i < 1200; i++) {
+      bands[0] = i % 20 < 2 ? 0.8 : 0.1; // bass pulses
+      bands[1] = 0.1; // mid flat
+      bands[2] = 0; // treble silent
+      s.update(inp, 1 / 60);
+    }
+    bands[0] = 0.8;
+    for (let i = 0; i < 30; i++) s.update(inp, 1 / 60);
+    expect(s.bass).toBeGreaterThan(0.5);
+    expect(s.mid).toBeLessThan(0.1); // flat input normalizes to quiet
+    expect(s.treble).toBe(0);
+  });
 });
 
 describe('bandRanges', () => {
