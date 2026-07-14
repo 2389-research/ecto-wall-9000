@@ -10,6 +10,9 @@ const STAMP_SPACING = 0.004; // uv between stamps along a stroke
 const MAX_STAMPS = 32; // per joint per frame
 const FADE_TAU = 8; // seconds for painted light to dissolve
 
+const AUDIO_BASS_CURTAIN = 0.9; // bass swells the procedural curtain amplitude
+const AUDIO_SHIMMER = 0.7; // beat boost + hue kick on fresh ribbon stamps
+
 // Painting joints over MediaPipe's 33-landmark pose: nose, wrists, ankles.
 const JOINTS = [0, 15, 16, 27, 28];
 // One hue anchor per joint (drifted slowly in the shader): green nose, teal/magenta
@@ -134,6 +137,7 @@ const STAMP_FS = `#version 300 es
 precision highp float;
 uniform float uT;
 uniform float uGain;
+uniform float uBeat; // 0-1 beat envelope: fresh stamps flash a shifted hue
 in float vHue;
 in float vA;
 out vec4 o;
@@ -145,7 +149,7 @@ vec3 hsv2rgb(vec3 c) {
 void main() {
   vec2 q = gl_PointCoord - 0.5;
   float fall = exp(-dot(q, q) * 9.0) - 0.11; // soft core, hard zero at the rim
-  vec3 col = hsv2rgb(vec3(fract(vHue + uT * 0.003), 0.75, 1.0));
+  vec3 col = hsv2rgb(vec3(fract(vHue + uT * 0.003 + uBeat * 0.06), 0.75, 1.0));
   o = vec4(col * max(fall, 0.0) * vA * uGain, 1.0);
 }`;
 
@@ -153,13 +157,14 @@ const RENDER_FS = `#version 300 es
 precision highp float;
 uniform sampler2D uTrail;
 uniform float uT;
+uniform float uBass; // 0-1: bass swells the curtains
 in vec2 vUV;
 out vec4 outColor;
 ${NOISE_GLSL}
 void main() {
   // Dim procedural curtains keep the sky alive when nobody is painting.
   float band = fbm(vec2(vUV.x * 2.6 + uT * 0.012, vUV.y * 0.7 - uT * 0.016));
-  float curtain = pow(band, 2.4) * (0.30 + 0.70 * vUV.y);
+  float curtain = pow(band, 2.4) * (0.30 + 0.70 * vUV.y) * (1.0 + uBass);
   vec3 col = vec3(0.012, 0.020, 0.030) + vec3(0.10, 0.34, 0.24) * curtain * 0.45;
 
   vec3 tr = texture(uTrail, vUV).rgb;
@@ -340,7 +345,8 @@ export class AuroraRibbons {
         .setTex('uData', this.dataTex, 0)
         .set('uSize', this._size)
         .set('uT', t)
-        .set('uGain', 0.06);
+        .set('uBeat', ctx.signals.beat)
+        .set('uGain', 0.06 * (1 + ctx.signals.beat * AUDIO_SHIMMER));
       gl.drawArrays(gl.POINTS, 0, this._stampCount);
       gl.disable(gl.BLEND);
     }
@@ -355,7 +361,12 @@ export class AuroraRibbons {
     const ctx = this.ctx;
     if (!ctx || !this.trail || !this.renderProg) return;
     bindTarget(ctx.gl, target);
-    this.renderProg.use().setTex('uTrail', this.trail.read.tex, 0).set('uT', t).draw();
+    this.renderProg
+      .use()
+      .setTex('uTrail', this.trail.read.tex, 0)
+      .set('uT', t)
+      .set('uBass', ctx.signals.bass * AUDIO_BASS_CURTAIN)
+      .draw();
   }
 
   /** @param {number} w @param {number} h */
