@@ -15,7 +15,7 @@
 [[headers]]
   for = "/*"
   [headers.values]
-    # The wall needs the camera and fullscreen, and nothing else — deny the rest
-    # explicitly to match the privacy promise on the gate.
-    Permissions-Policy = "camera=(self), fullscreen=(self), microphone=(), geolocation=()"
+    # The wall needs the camera, the microphone, and fullscreen, and nothing else —
+    # deny the rest explicitly to match the privacy promise on the gate.
+    Permissions-Policy = "camera=(self), fullscreen=(self), microphone=(self), geolocation=()"
     Referrer-Policy = "no-referrer"
