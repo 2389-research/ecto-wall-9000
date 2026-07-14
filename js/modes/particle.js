@@ -4,6 +4,7 @@
 import { bindTarget, createPingPong, NOISE_GLSL, Program } from '../gl.js';
 
 const DIM = 384; // 147,456 particles, state resident in an RGBA32F ping-pong
+const AUDIO_KICK = 0.9; // beat → per-particle velocity jitter burst (uv/s per envelope unit)
 
 // State texel: pos.xy in stage uv, vel.zw in uv/s.
 const SIM_FS = `#version 300 es
@@ -13,6 +14,8 @@ uniform sampler2D uMotion;
 uniform float uDt;
 uniform float uT;
 uniform float uSeed;
+uniform float uBass; // 0-1: bass swells the curl drift
+uniform float uKick; // beat impulse: brief per-particle jitter burst
 in vec2 vUV;
 out vec4 o;
 ${NOISE_GLSL}
@@ -30,9 +33,12 @@ void main() {
   vec4 mo = texture(uMotion, pos);
   vel += mo.xy * smoothstep(0.10, 1.0, mo.z) * uDt * 6.0;
 
-  // Everything relaxes back toward a slow curl-noise drift.
-  vec2 drift = curl2(pos * 3.0 + vec2(uT * 0.021, -uT * 0.017)) * 0.022;
+  // Everything relaxes back toward a slow curl-noise drift; bass leans on the weather.
+  vec2 drift = curl2(pos * 3.0 + vec2(uT * 0.021, -uT * 0.017)) * (0.022 + 0.030 * uBass);
   vel = mix(vel, drift, 1.0 - exp(-uDt / 2.5));
+
+  // Beats kick the whole swarm: every particle gets its own random shove.
+  vel += (hash22(pos * 771.3 + vUV) - 0.5) * uKick * uDt;
 
   float sp = length(vel);
   if (sp > 0.35) vel *= 0.35 / sp;
@@ -44,13 +50,14 @@ void main() {
 const POINT_VS = `#version 300 es
 uniform sampler2D uState;
 uniform int uDim;
+uniform float uTreble; // 0-1: sparkle — hot cores swell on treble
 out float vSpeed;
 void main() {
   ivec2 tc = ivec2(gl_VertexID % uDim, gl_VertexID / uDim);
   vec4 s = texelFetch(uState, tc, 0);
   vSpeed = length(s.zw);
   gl_Position = vec4(s.xy * 2.0 - 1.0, 0.0, 1.0);
-  gl_PointSize = 1.0 + smoothstep(0.0, 0.30, vSpeed) * 2.0;
+  gl_PointSize = 1.0 + smoothstep(0.0, 0.30, vSpeed) * (2.0 + uTreble * 2.5);
 }`;
 
 const POINT_FS = `#version 300 es
@@ -138,6 +145,8 @@ export class ParticleWake {
       .set('uDt', dt)
       .set('uT', t)
       .set('uSeed', this._seeded ? 0 : 1)
+      .set('uBass', ctx.signals.bass)
+      .set('uKick', ctx.signals.beat * AUDIO_KICK)
       .draw();
     this.state.swap();
     this._seeded = true;
@@ -162,7 +171,11 @@ export class ParticleWake {
       .draw();
 
     // ...and the swarm burns additively on top.
-    this.pointProg.use().setTex('uState', this.state.read.tex, 0).setInt('uDim', DIM);
+    this.pointProg
+      .use()
+      .setTex('uState', this.state.read.tex, 0)
+      .setInt('uDim', DIM)
+      .set('uTreble', ctx.signals.treble);
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.ONE, gl.ONE);
     gl.drawArrays(gl.POINTS, 0, DIM * DIM);
