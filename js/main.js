@@ -165,28 +165,30 @@ startBtn.addEventListener('click', async () => {
   if (await startCamera()) await startAudio();
 });
 
-// Skip the gate entirely when the camera permission is already durable (kiosk reboot case).
+/**
+ * Durable permission state for a capability, or 'unsupported' where the permissions API
+ * won't say — which the auto-skip must treat like an undecided prompt.
+ * @param {string} name
+ */
+async function permissionState(name) {
+  try {
+    const st = await navigator.permissions.query({ name: /** @type {PermissionName} */ (name) });
+    return st.state;
+  } catch {
+    return 'unsupported';
+  }
+}
+
+// Skip the gate only when every permission decision is already durable (kiosk reboot
+// case). An undecided mic keeps the gate up: Begin is the only gesture that may ask, so
+// hiding it would strand the mic at 'prompt' forever. A denied mic is a decision — skip
+// the gate and stay deaf; asking again is not ours to do.
 (async () => {
-  let camGranted = false;
-  try {
-    const st = await navigator.permissions.query({
-      name: /** @type {PermissionName} */ ('camera'),
-    });
-    camGranted = st.state === 'granted';
-  } catch {
-    // permissions API unsupported for camera — the gate stays, which is fine
-  }
-  if (!camGranted || !(await startCamera())) return;
-  // The mic joins only when its permission is durable too: an auto-start has no user
-  // gesture, so a prompt here would ambush the room. 'prompt' waits for the next click.
-  try {
-    const mic = await navigator.permissions.query({
-      name: /** @type {PermissionName} */ ('microphone'),
-    });
-    if (mic.state === 'granted') await startAudio();
-  } catch {
-    // permissions API unsupported for microphone — stay deaf until a Begin click
-  }
+  if ((await permissionState('camera')) !== 'granted') return;
+  const mic = audioOn ? await permissionState('microphone') : null; // null: audio opted out
+  if (mic === 'prompt' || mic === 'unsupported') return;
+  if (!(await startCamera())) return;
+  if (mic === 'granted') await startAudio();
 })();
 
 // --- keyboard + panel ----------------------------------------------------------------------

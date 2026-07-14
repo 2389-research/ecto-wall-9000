@@ -68,9 +68,10 @@ the overlay clock), `?audio=0` (disable the microphone entirely).
 
 Built to run for weeks unattended:
 
-- **Camera gate auto-skip** — once the camera permission is durable, reboots go straight
-  to the wall with no click; the mic joins automatically only if its permission is
-  already durable too (an auto-start never prompts).
+- **Gate auto-skip** — once every permission decision is durable (camera granted, mic
+  granted or denied — or opted out via `?audio=0`), reboots go straight to the wall with
+  no click. An undecided mic keeps the gate up for one more Begin click, because that
+  click is the only gesture that may ask (an auto-start never prompts).
 - **WebGL context-loss recovery** — a dead GL context triggers a clean reload
   (all state is ambient by design), with exponential backoff so a sick GPU isn't thrashed.
 - **Camera loss recovery** — an unplugged/revoked camera is retried quietly every 3 s

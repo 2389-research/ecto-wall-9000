@@ -137,9 +137,13 @@ louder-room-cycles-faster; rejected — dwell already has a knob).
 - Begin click runs `startCamera()` then `startAudio()` — two separate `getUserMedia`
   calls in the same gesture (two prompts on first visit). Mic failure of any kind is
   swallowed: audio signals rest at zero, the wall never notices.
-- Kiosk-reboot auto-skip extends symmetrically: mic auto-starts only when
-  `permissions.query({ name: 'microphone' })` reports `granted`. If it reports `prompt`,
-  the mic stays off until the next Begin click — never a no-gesture permission ambush.
+- Kiosk-reboot auto-skip fires only when every permission decision is durable: camera
+  `granted`, and (unless `?audio=0`) mic `granted` or `denied` per
+  `permissions.query({ name: 'microphone' })`. An undecided (`prompt`) mic keeps the
+  gate up for one more Begin click — that click is the only gesture that may ask, and
+  hiding it would strand the mic at `prompt` forever (the original design waited for "the
+  next Begin click" while auto-skip removed the button; amended 2026-07-14). A no-gesture
+  prompt ambush remains off the table; `denied` skips the gate and stays deaf.
 - `?audio=0` disables audio entirely: no `getUserMedia`, no `AudioContext`.
 - HUD line gains ` | audio 0.42 beat 0.9 | mic live/off`.
 
