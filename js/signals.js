@@ -1,5 +1,5 @@
 // ABOUTME: Pure-logic signal core for ECTO-WALL 9000 — no DOM, no WebGL, fully unit-testable.
-// ABOUTME: Smoothing, camera→display geometry, activity history, mode cycle scheduling, quality governor.
+// ABOUTME: Smoothing, camera→display geometry, activity history, cycle scheduling, quality governor, audio math.
 // @ts-check
 
 /**
@@ -277,6 +277,70 @@ export class QualityGovernor {
     }
     return this.scale;
   }
+}
+
+// --- audio ---------------------------------------------------------------------------------
+
+/**
+ * FFT bin index ranges for a set of band edges, computed once at init.
+ * Bin k covers frequencies around k * sampleRate / fftSize; bin 0 (DC) is skipped.
+ * @param {number} sampleRate
+ * @param {number} fftSize
+ * @param {number[]} edges band boundaries in Hz, e.g. [20, 250, 2000, 8000]
+ * @returns {[number, number][]} per band: [start bin, end bin) — start inclusive, end exclusive
+ */
+export function bandRanges(sampleRate, fftSize, edges) {
+  const bins = fftSize / 2;
+  /** @type {[number, number][]} */
+  const out = [];
+  for (let i = 0; i < edges.length - 1; i++) {
+    const lo = Math.max(1, Math.min(bins - 1, Math.ceil((edges[i] * fftSize) / sampleRate)));
+    const hi = Math.max(lo + 1, Math.min(bins, Math.ceil((edges[i + 1] * fftSize) / sampleRate)));
+    out.push([lo, hi]);
+  }
+  return out;
+}
+
+/**
+ * Mean magnitude per band, 0–1, written into out — no allocation, safe per-frame.
+ * @param {Uint8Array} spectrum byte magnitudes from an AnalyserNode
+ * @param {[number, number][]} ranges from bandRanges()
+ * @param {Float32Array} out one slot per band
+ */
+export function aggregateBands(spectrum, ranges, out) {
+  for (let i = 0; i < ranges.length; i++) {
+    const lo = ranges[i][0];
+    const hi = ranges[i][1];
+    let sum = 0;
+    for (let k = lo; k < hi; k++) sum += spectrum[k];
+    out[i] = sum / ((hi - lo) * 255);
+  }
+  return out;
+}
+
+/**
+ * Mean magnitude of the whole spectrum, 0–1 — the room's raw loudness.
+ * @param {Uint8Array} spectrum
+ */
+export function spectrumLevel(spectrum) {
+  let sum = 0;
+  for (let i = 0; i < spectrum.length; i++) sum += spectrum[i];
+  return sum / (spectrum.length * 255);
+}
+
+/**
+ * Spectral flux: mean positive per-bin rise between consecutive spectra, 0–1.
+ * Rises only — energy arriving reads as an onset; energy leaving reads as nothing.
+ * @param {Uint8Array} cur
+ * @param {Uint8Array} prev
+ */
+export function spectralFlux(cur, prev) {
+  let sum = 0;
+  for (let i = 0; i < cur.length; i++) {
+    const d = cur[i] - prev[i];
+    if (d > 0) sum += d;
+  }
+  return sum / (cur.length * 255);
 }
 
 /**

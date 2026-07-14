@@ -2,6 +2,8 @@
 // ABOUTME: activity history, mode cycle scheduling, and the adaptive quality governor.
 import { describe, expect, it } from 'vitest';
 import {
+  aggregateBands,
+  bandRanges,
   CycleScheduler,
   camToDisp,
   coverMap,
@@ -10,6 +12,8 @@ import {
   HistoryRing,
   QualityGovernor,
   Signals,
+  spectralFlux,
+  spectrumLevel,
 } from '../../js/signals.js';
 
 describe('ema', () => {
@@ -284,5 +288,68 @@ describe('Signals', () => {
     const s = new Signals();
     for (let i = 0; i < 120; i++) s.update({ energyRaw: 0.8, poses: [], hands: [] }, 1);
     expect(s.pressure).toBeGreaterThan(0.5);
+  });
+});
+
+describe('bandRanges', () => {
+  it('maps Hz edges to FFT bin ranges, skipping the DC bin', () => {
+    // 48kHz / 2048 fftSize → 23.4375 Hz per bin, 1024 bins total.
+    const r = bandRanges(48000, 2048, [20, 250, 2000, 8000]);
+    expect(r.length).toBe(3);
+    expect(r[0]).toEqual([1, 11]); // 20Hz sits inside bin 0 (DC) — clamped up to bin 1
+    expect(r[1]).toEqual([11, 86]);
+    expect(r[2]).toEqual([86, 342]);
+  });
+
+  it('never exceeds the bin count and never produces an empty band', () => {
+    const r = bandRanges(8000, 2048, [20, 250, 2000, 8000]); // 8kHz edge = Nyquist exactly
+    for (const [lo, hi] of r) {
+      expect(lo).toBeGreaterThanOrEqual(1);
+      expect(hi).toBeGreaterThan(lo);
+      expect(hi).toBeLessThanOrEqual(1024);
+    }
+  });
+});
+
+describe('aggregateBands', () => {
+  it('averages magnitudes per band into 0-1 without allocating', () => {
+    const spec = new Uint8Array(1024);
+    spec.fill(255, 1, 11); // bass bins fully hot
+    const out = new Float32Array(3);
+    const ret = aggregateBands(
+      spec,
+      [
+        [1, 11],
+        [11, 86],
+        [86, 342],
+      ],
+      out,
+    );
+    expect(ret).toBe(out);
+    expect(out[0]).toBeCloseTo(1, 5);
+    expect(out[1]).toBe(0);
+    expect(out[2]).toBe(0);
+  });
+});
+
+describe('spectrumLevel', () => {
+  it('is the mean magnitude 0-1', () => {
+    expect(spectrumLevel(new Uint8Array([0, 255, 255, 0]))).toBeCloseTo(0.5, 6);
+    expect(spectrumLevel(new Uint8Array(16))).toBe(0);
+  });
+});
+
+describe('spectralFlux', () => {
+  it('sums only positive bin rises, normalized by bin count', () => {
+    const prev = new Uint8Array([10, 20, 30, 40]);
+    const cur = new Uint8Array([20, 10, 30, 60]);
+    // rises: +10 (bin 0) and +20 (bin 3) → 30 / (255 * 4)
+    expect(spectralFlux(cur, prev)).toBeCloseTo(30 / (255 * 4), 6);
+  });
+
+  it('is zero for identical spectra and for pure decay', () => {
+    const a = new Uint8Array([50, 50]);
+    expect(spectralFlux(a, a)).toBe(0);
+    expect(spectralFlux(new Uint8Array([10, 10]), new Uint8Array([200, 200]))).toBe(0);
   });
 });
