@@ -5,6 +5,9 @@ import { bindTarget, createPingPong, NOISE_GLSL, Program } from '../gl.js';
 
 const ITERS = 10; // reaction-diffusion steps per frame
 
+const AUDIO_EDGE_GROW = 0.35; // beat → extra deposit along silhouette edges
+const AUDIO_GROWTH = 4; // extra reaction-diffusion steps at full loudness
+
 // Field texel: R = chemical A, G = chemical B, B = age in seconds.
 // Classic Gray-Scott coral regime: f 0.0545, k 0.062, DA 0.2097, DB 0.105.
 const SIM_FS = `#version 300 es
@@ -17,6 +20,7 @@ uniform float uInit;     // 1 = reset field to bare soil
 uniform float uFirst;    // 1 on the first iteration of a frame
 uniform float uDt;       // wall dt, applied once per frame on the first iteration
 uniform vec3 uSpore;     // xy pos, z strength — CPU-timed ambient spore
+uniform float uBeatGrow; // beat envelope: flushes extra growth along silhouette edges
 in vec2 vUV;
 out vec4 o;
 
@@ -48,7 +52,7 @@ void main() {
     float gx = segAt(vUV + vec2(uPx.x * 2.0, 0.0)) - segAt(vUV - vec2(uPx.x * 2.0, 0.0));
     float gy = segAt(vUV + vec2(0.0, uPx.y * 2.0)) - segAt(vUV - vec2(0.0, uPx.y * 2.0));
     float edge = smoothstep(0.15, 0.60, abs(gx) + abs(gy)) * smoothstep(0.20, 0.55, m);
-    nB = max(nB, edge * 0.5);
+    nB = max(nB, edge * (0.5 + uBeatGrow));
 
     // A rare drifting spore keeps an empty room's garden alive.
     nB = max(nB, smoothstep(uSpore.z, 0.0, distance(vUV, uSpore.xy)) * 0.55);
@@ -166,8 +170,11 @@ export class SilhouetteGarden {
       .set('uMap', this._map)
       .set('uPx', this._px)
       .set('uDt', dt)
-      .set('uSpore', this._spore);
-    for (let i = 0; i < ITERS; i++) {
+      .set('uSpore', this._spore)
+      .set('uBeatGrow', ctx.signals.beat * AUDIO_EDGE_GROW);
+    // A loud room grows faster: a few extra sim steps at full loudness.
+    const iters = ITERS + Math.round(ctx.signals.audioLevel * AUDIO_GROWTH);
+    for (let i = 0; i < iters; i++) {
       bindTarget(gl, this.field.write);
       prog
         .setTex('uField', this.field.read.tex, 0)
