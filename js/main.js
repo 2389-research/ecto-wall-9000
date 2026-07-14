@@ -1,6 +1,7 @@
 // ABOUTME: Boot and conductor for ECTO-WALL 9000: GL init, start gate, render loop,
 // ABOUTME: quality governor, keyboard control, HUD, and wiring between vision/signals/modes.
 // @ts-check
+import { AudioEngine } from './audio.js';
 import { initClock } from './clock.js';
 import { initGL } from './gl.js';
 import { armContextLossReload, keepAwake } from './kiosk.js';
@@ -41,6 +42,8 @@ const auto = !(cycleParam === '0' || cycleParam === 'false');
 const pinParam = query.get('mode');
 const clockParam = query.get('clock');
 const clockOn = !(clockParam === '0' || clockParam === 'false');
+const audioParam = query.get('audio');
+const audioOn = !(audioParam === '0' || audioParam === 'false');
 
 /** @param {string} msg */
 function fatal(msg) {
@@ -66,6 +69,10 @@ const post = new Post(gl);
 
 // Vision starts at a placeholder size; applyStage() below sets the real one immediately.
 const vision = new Vision(gl, 640, 360);
+
+// The wall's ear. Constructed unconditionally (bare arrays, no I/O) — with ?audio=0 it is
+// simply never started, so no getUserMedia and no AudioContext ever exist.
+const audio = new AudioEngine();
 
 const modes = [
   new GhostField(),
@@ -120,10 +127,22 @@ async function startCamera() {
     await vision.start();
     gate.classList.add('leaving');
     setTimeout(() => gate.setAttribute('hidden', ''), 1700);
+    return true;
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     gateError.textContent = `Camera unavailable: ${msg}`;
     gateError.hidden = false;
+    return false;
+  }
+}
+
+// Mic failure of any kind is swallowed: audio signals rest at zero, the wall never notices.
+async function startAudio() {
+  if (!audioOn) return;
+  try {
+    await audio.start();
+  } catch (err) {
+    console.warn('[main] mic unavailable - audio signals rest at zero:', err);
   }
 }
 
@@ -140,17 +159,33 @@ vision.onLost = () => {
   }, 3000);
 };
 
-startBtn.addEventListener('click', startCamera);
+startBtn.addEventListener('click', async () => {
+  // Camera then mic: two separate getUserMedia calls in the same gesture, so a denied
+  // mic can never take the camera down with it.
+  if (await startCamera()) await startAudio();
+});
 
 // Skip the gate entirely when the camera permission is already durable (kiosk reboot case).
 (async () => {
+  let camGranted = false;
   try {
     const st = await navigator.permissions.query({
       name: /** @type {PermissionName} */ ('camera'),
     });
-    if (st.state === 'granted') await startCamera();
+    camGranted = st.state === 'granted';
   } catch {
     // permissions API unsupported for camera — the gate stays, which is fine
+  }
+  if (!camGranted || !(await startCamera())) return;
+  // The mic joins only when its permission is durable too: an auto-start has no user
+  // gesture, so a prompt here would ambush the room. 'prompt' waits for the next click.
+  try {
+    const mic = await navigator.permissions.query({
+      name: /** @type {PermissionName} */ ('microphone'),
+    });
+    if (mic.state === 'granted') await startAudio();
+  } catch {
+    // permissions API unsupported for microphone — stay deaf until a Begin click
   }
 })();
 
@@ -215,7 +250,9 @@ setInterval(() => {
     ` | fps ${fps.toFixed(0)} | scale ${governor.scale}` +
     ` | motion ${signals.motionEnergy.toFixed(2)} | people ${signals.personCount}` +
     ` | hands ${signals.handActivity.toFixed(2)} | mp ${vision.mpStatus}` +
-    ` | cam ${vision.cameraAlive ? 'live' : 'off'} | wake ${wake.held ? 'on' : 'off'}`;
+    ` | audio ${signals.audioLevel.toFixed(2)} beat ${signals.beat.toFixed(2)}` +
+    ` | cam ${vision.cameraAlive ? 'live' : 'off'} | mic ${audio.micAlive ? 'live' : 'off'}` +
+    ` | wake ${wake.held ? 'on' : 'off'}`;
 }, 500);
 
 // --- render loop --------------------------------------------------------------------------
@@ -229,6 +266,9 @@ const sigInputs = {
   energyRaw: 0,
   poses: /** @type {{x: number, y: number, vis: number}[][]} */ ([]),
   hands: /** @type {{x: number, y: number}[][]} */ ([]),
+  audioLevelRaw: 0,
+  audioBandsRaw: new Float32Array(3),
+  audioFluxRaw: 0,
 };
 
 /** @param {number} now */
@@ -243,9 +283,13 @@ function frame(now) {
   if (governor.scale !== before) applyStage();
 
   vision.update(dt);
+  audio.update(dt);
   sigInputs.energyRaw = vision.energyRaw;
   sigInputs.poses = vision.poses;
   sigInputs.hands = vision.hands;
+  sigInputs.audioLevelRaw = audio.levelRaw;
+  sigInputs.audioBandsRaw = audio.bandsRaw;
+  sigInputs.audioFluxRaw = audio.fluxRaw;
   signals.update(sigInputs, dt);
   manager.update(dt, t);
   const sceneTex = manager.render(t);
