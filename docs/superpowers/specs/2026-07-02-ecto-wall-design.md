@@ -193,6 +193,10 @@ Per house rules: unit, integration, and e2e all required; no app-level mock mode
 
 ## Amendments
 
+- **2026-07-14 — audio reactivity:** the "No audio input" non-goal is superseded by
+  `2026-07-14-audio-reactivity-design.md` — a room microphone becomes shared signals
+  (level, bass/mid/treble, beat) enriching all modes and the post pass. Audio output
+  remains a non-goal.
 - **2026-07-02 — roster swap:** **Skeleton Constellation** and **Room Weather** retired,
   replaced by **Aurora Ribbons** (pose-driven light calligraphy: nose/wrists/ankles paint
   hue-coded ribbons into a rising feedback buffer; procedural curtains when empty; *needs:
