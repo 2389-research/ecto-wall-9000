@@ -78,7 +78,8 @@ To the microphone what `Vision` is to the camera. I/O and array plumbing only �
   the HUD. Unlike camera loss there is no UI consequence, so the retry stays inside the
   engine rather than in `main.js`.
 - `stop()` releases the track and closes the context (test teardown; with `?audio=0` the
-  engine is never constructed at all).
+  engine is never started — its constructor is bare arrays, so no `getUserMedia` and no
+  `AudioContext` ever exist).
 
 ### Pure math — `signals.js` additions
 
