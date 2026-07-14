@@ -2,6 +2,7 @@
 // ABOUTME: activity history, mode cycle scheduling, and the adaptive quality governor.
 import { describe, expect, it } from 'vitest';
 import {
+  AutoGain,
   aggregateBands,
   bandRanges,
   CycleScheduler,
@@ -10,6 +11,7 @@ import {
   ema,
   fadeEnvelope,
   HistoryRing,
+  OnsetDetector,
   QualityGovernor,
   Signals,
   spectralFlux,
@@ -351,5 +353,84 @@ describe('spectralFlux', () => {
     const a = new Uint8Array([50, 50]);
     expect(spectralFlux(a, a)).toBe(0);
     expect(spectralFlux(new Uint8Array([10, 10]), new Uint8Array([200, 200]))).toBe(0);
+  });
+});
+
+describe('AutoGain', () => {
+  /** Train on alternating base/peak, then read back the normalized base and peak. */
+  const train = (g, base, peak) => {
+    for (let i = 0; i < 1200; i++) g.update(i % 20 < 2 ? peak : base, 1 / 60);
+    return [g.update(base, 1 / 60), g.update(peak, 1 / 60)];
+  };
+
+  it('reads silence as true zero from the very first frame', () => {
+    const g = new AutoGain();
+    expect(g.update(0, 1 / 60)).toBe(0);
+    for (let i = 0; i < 300; i++) expect(g.update(0, 1 / 60)).toBe(0);
+  });
+
+  it('adapts its range so loud and quiet rooms normalize alike', () => {
+    const [loudBase, loudPeak] = train(new AutoGain(), 0.3, 0.9);
+    const [quietBase, quietPeak] = train(new AutoGain(), 0.03, 0.09);
+    expect(loudBase).toBeLessThan(0.35);
+    expect(loudPeak).toBeGreaterThan(0.6);
+    expect(quietBase).toBeLessThan(0.35);
+    expect(quietPeak).toBeGreaterThan(0.6);
+  });
+
+  it('flat input never divides by zero and reads as quiet', () => {
+    const g = new AutoGain();
+    let v = 1;
+    for (let i = 0; i < 600; i++) v = g.update(0.5, 1 / 60);
+    expect(Number.isNaN(v)).toBe(false);
+    expect(v).toBe(0);
+  });
+});
+
+describe('OnsetDetector', () => {
+  /** Settle the running mean on a steady noise floor. */
+  const settle = (d, flux = 0.01, frames = 120) => {
+    for (let i = 0; i < frames; i++) d.update(flux, 1 / 60);
+  };
+
+  it('stays silent on a steady noise floor', () => {
+    const d = new OnsetDetector();
+    settle(d);
+    expect(d.update(0.01, 1 / 60)).toBe(0);
+  });
+
+  it('fires on a flux spike and decays over ~a quarter second', () => {
+    const d = new OnsetDetector();
+    settle(d);
+    expect(d.update(0.2, 1 / 60)).toBe(1);
+    let v = 1;
+    for (let i = 0; i < 30; i++) v = d.update(0.01, 1 / 60); // 0.5s = 2 decay taus
+    expect(v).toBeLessThan(0.2);
+    expect(v).toBeGreaterThan(0.05);
+  });
+
+  it('the refractory blocks an immediate double-fire but not a later one', () => {
+    const d = new OnsetDetector();
+    settle(d);
+    expect(d.update(0.3, 1 / 60)).toBe(1);
+    expect(d.update(0.3, 1 / 60)).toBeLessThan(1); // 17ms later: inside the 120ms refractory
+    for (let i = 0; i < 10; i++) d.update(0.01, 1 / 60); // 167ms — refractory expired
+    expect(d.update(0.3, 1 / 60)).toBe(1);
+  });
+
+  it('sustained loud flux stops firing — it is not an onset if it never ends', () => {
+    const d = new OnsetDetector();
+    settle(d, 0.01, 60);
+    for (let i = 0; i < 600; i++) d.update(0.2, 1 / 60); // 10s of constant loud flux
+    const a = d.update(0.2, 1 / 60);
+    const b = d.update(0.2, 1 / 60);
+    expect(a).toBeLessThan(0.01); // adapted: threshold rose above the plateau
+    expect(b).toBeLessThan(a); // and the envelope keeps decaying
+  });
+
+  it('ignores tiny flux below the absolute floor even from silence', () => {
+    const d = new OnsetDetector();
+    settle(d, 0, 120);
+    expect(d.update(0.004, 1 / 60)).toBe(0); // below fluxFloor 0.005
   });
 });

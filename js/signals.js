@@ -344,6 +344,99 @@ export function spectralFlux(cur, prev) {
 }
 
 /**
+ * Per-signal adaptive normalizer: learns a floor (room tone) and a ceiling (how loud this
+ * room gets) so any mic in any room maps onto the same 0–1 range with no calibration.
+ * The floor chases the raw value down fast and up very slowly; the ceiling is the mirror.
+ * Silence therefore reads as true zero within moments of the room going quiet.
+ */
+export class AutoGain {
+  /** @param {{floorFall?: number, floorRise?: number, ceilRise?: number, ceilFall?: number, minSpan?: number}} [opts] taus in seconds */
+  constructor(opts = {}) {
+    const { floorFall = 0.5, floorRise = 60, ceilRise = 0.5, ceilFall = 60, minSpan = 0.02 } = opts;
+    this.floorFall = floorFall;
+    this.floorRise = floorRise;
+    this.ceilRise = ceilRise;
+    this.ceilFall = ceilFall;
+    this.minSpan = minSpan;
+    this.floor = 0;
+    this.ceil = minSpan;
+    this._primed = false;
+  }
+
+  /**
+   * Feed one raw sample, get the normalized 0–1 value.
+   * @param {number} raw @param {number} dt
+   */
+  update(raw, dt) {
+    if (!this._primed) {
+      // Snap to the first sample so a quiet room reads zero immediately instead of
+      // after a minute of slow floor-learning.
+      this.floor = raw;
+      this.ceil = raw + this.minSpan;
+      this._primed = true;
+      return 0;
+    }
+    this.floor = ema(this.floor, raw, dt, raw < this.floor ? this.floorFall : this.floorRise);
+    this.ceil = ema(this.ceil, raw, dt, raw > this.ceil ? this.ceilRise : this.ceilFall);
+    if (this.ceil < this.floor + this.minSpan) this.ceil = this.floor + this.minSpan;
+    return clamp01((raw - this.floor) / (this.ceil - this.floor));
+  }
+}
+
+/**
+ * Onset detector + beat envelope. An onset fires when spectral flux beats an adaptive
+ * threshold (a multiple of its own running mean, above an absolute floor), with a short
+ * refractory so one kick drum never double-fires. The envelope snaps to 1 on onset and
+ * decays exponentially — attack is instant by construction.
+ */
+export class OnsetDetector {
+  /** @param {{sensitivity?: number, avgTau?: number, decayTau?: number, refractory?: number, fluxFloor?: number}} [opts] */
+  constructor(opts = {}) {
+    const {
+      sensitivity = 1.5,
+      avgTau = 2,
+      decayTau = 0.25,
+      refractory = 0.12,
+      fluxFloor = 0.005,
+    } = opts;
+    this.sensitivity = sensitivity;
+    this.avgTau = avgTau;
+    this.decayTau = decayTau;
+    this.refractory = refractory;
+    this.fluxFloor = fluxFloor;
+    this.avg = 0;
+    this.beat = 0;
+    this._primed = false;
+    this._sinceOnset = Infinity;
+  }
+
+  /**
+   * Feed one flux sample, get the beat envelope 0–1.
+   * @param {number} flux @param {number} dt
+   */
+  update(flux, dt) {
+    this._sinceOnset += dt;
+    this.beat *= Math.exp(-dt / this.decayTau);
+    if (!this._primed) {
+      // Prime the running mean on the first sample so mic turn-on isn't a beat.
+      this.avg = flux;
+      this._primed = true;
+      return this.beat;
+    }
+    const fires =
+      flux > this.fluxFloor &&
+      flux > this.avg * this.sensitivity &&
+      this._sinceOnset >= this.refractory;
+    this.avg = ema(this.avg, flux, dt, this.avgTau);
+    if (fires) {
+      this.beat = 1;
+      this._sinceOnset = 0;
+    }
+    return this.beat;
+  }
+}
+
+/**
  * The room's smoothed nervous system. Fed raw per-frame inputs, exposes eased values
  * every mode reads: motionEnergy, personCount, handActivity, and long-run pressure.
  */
