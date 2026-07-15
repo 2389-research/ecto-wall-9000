@@ -58,3 +58,23 @@ divergence never existed in any test.
 3. **Two permissions acquired in sequence are a state machine, not a boolean.** Enumerate
    all four granted×prompt combinations at design time; the spec only considered
    both-prompt and both-granted.
+
+## 2026-07-15 — Declared the Netlify link broken; it wasn't
+
+**What happened:** Diagnosed "site not connected to git" from three signals that each have
+an innocent explanation: no repo webhooks (GitHub-App integrations deliver events through
+the app, invisible to `repos/*/hooks`), no commit statuses or check runs on main (Netlify
+posts those mostly on PRs/deploy previews, not production branch pushes), and an empty
+retrigger commit producing no rebuild. That last one was the trap: Netlify's ignore-builds
+step diffs the cached commit against the new one and **skips the build when the diff is
+empty** — an empty commit is the one push guaranteed never to rebuild. Doctor Biz: main
+auto-deploys; stand down.
+
+**Rules:**
+
+1. **Never retrigger Netlify with an empty commit** — it is skipped as no-diff by design.
+   Retrigger with a real change, the UI button, or the API.
+2. **Absence of webhooks/statuses is not absence of linkage.** Verify deploy wiring from
+   the deploy side (deploy log, site config), not by inference from the GitHub side.
+3. **Live header rules that mismatch live files suggest stale deploy/edge config, not a
+   broken link.** A real rebuild refreshes the rules; escalate to Netlify only after one.
